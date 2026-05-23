@@ -789,6 +789,7 @@ onUnmounted(() => {
   color: #999;
   padding: 8px;
 }
+
 @media screen and (max-width: 768px) {
   .home-page { padding: 12px; gap: 12px; }
   .data-card-container { padding: 16px; }
@@ -802,7 +803,7 @@ onUnmounted(() => {
   .table-card { padding: 16px; min-height: 280px; }
   .table-title { font-size: 14px; margin-bottom: 12px; padding-bottom: 6px; }
   .table-placeholder { min-height: 220px; }
-  .bottom-cards { grid-template-columns: 1fr; gap: 12px; }
+  .bottom-cards { grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .page-footer { padding: 16px; }
   .footer-title { font-size: 14px; margin-bottom: 8px; }
   .footer-title::before { width: 6px; height: 6px; }

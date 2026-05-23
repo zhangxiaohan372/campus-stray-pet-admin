@@ -4,7 +4,7 @@ import { useUserStore } from '../stores/user'
 
 const service = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
-  timeout: 10000
+  timeout: 30000
 })
 
 // 请求拦截器

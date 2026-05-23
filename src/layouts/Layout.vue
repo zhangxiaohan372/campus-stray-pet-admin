@@ -2,12 +2,10 @@
   <div class="app-container">
     <div class="head">
       <div class="id">
-        <!-- 1. 绑定退出登录事件 -->
         <span @click="handleLogout" class="logout-btn">
           <el-icon><SwitchButton /></el-icon>
           <span>退出</span>
         </span>
-        <!-- 2. 兜底显示，避免空白 -->
         <span>欢迎您！{{ userStore.userInfo?.name || '管理员' }}</span>
       </div>
     </div>
@@ -67,6 +65,8 @@
       <router-view />
       </div>
     </div>
+    
+    <FloatAIQA />
   </div>
 </template>
 
@@ -76,8 +76,8 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus' 
 import { Star, MapLocation, User, MessageBox, SwitchButton ,Bell, UserFilled, Medal } from '@element-plus/icons-vue'
 import { useUserStore } from '../stores/user'
-
 import request from '../components/request'
+import FloatAIQA from '../components/FloatAIQA.vue'
 
 const userStore = useUserStore()
 const router = useRouter()

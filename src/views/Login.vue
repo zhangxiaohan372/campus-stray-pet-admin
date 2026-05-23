@@ -36,6 +36,10 @@
             登录
           </el-button>
         </el-form-item>
+        <div class="login-tip">
+          <span class="tip-label">测试账号：</span>
+          <span class="tip-text">admin / 123456</span>
+        </div>
       </el-form>
     </div>
   </div>
@@ -150,9 +154,31 @@ const handleLogin = async () => {
   margin-top: 20px;
 }
 
+:deep(.el-form-item) {
+  margin-bottom: 20px;
+}
+
 .login-btn-group {
   margin-top: 30px;
   margin-bottom: 0;
+}
+
+.login-tip {
+  text-align: center;
+  margin-top: 16px;
+  padding: 10px;
+  background-color: #f5f7fa;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.tip-label {
+  color: #909399;
+}
+
+.tip-text {
+  color: #409eff;
+  font-weight: 500;
 }
 
 .login-btn {

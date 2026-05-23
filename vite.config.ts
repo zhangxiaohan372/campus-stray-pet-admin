@@ -6,9 +6,7 @@ import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 
 export default defineConfig({
   plugins: [
-    // enable Vue SFC handling
     vue(),
-    // ...
     AutoImport({
       resolvers: [ElementPlusResolver()],
     }),
@@ -29,7 +27,6 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          // 第三方依赖分包
           'vendor': ['vue', 'vue-router', 'pinia'],
           'element-plus': ['element-plus', '@element-plus/icons-vue'],
           'echarts': ['echarts'],
