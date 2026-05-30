@@ -9,9 +9,9 @@ const service = axios.create({
 
 // 请求拦截器
 service.interceptors.request.use(
-  (config) => { 
+  (config) => {
     const userStore = useUserStore()
-    if (userStore.userInfo?.token) { 
+    if (userStore.userInfo?.token) {
       config.headers.Authorization = `Bearer ${userStore.userInfo?.token}`
     }
     return config
@@ -22,15 +22,15 @@ service.interceptors.request.use(
 // 响应拦截器
 service.interceptors.response.use(
   (response) => response,
-  async (error) => { 
-    if (error.response) { 
+  async (error) => {
+    if (error.response) {
       const { status } = error.response
-      if (status === 401 || status === 403) { 
+      if (status === 401 || status === 403) {
         ElMessage.error('登录状态已过期，请重新登录')
         const userstore = useUserStore()
         userstore.logout()
         const router = (await import('../router/index')).default
-        router.push({ path: '/login', query: {redirect:router.currentRoute.value.fullPath} })
+        router.push({ path: '/login', query: { redirect: router.currentRoute.value.fullPath } })
       }
     }
     return Promise.reject(error)
