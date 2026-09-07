@@ -1,12 +1,27 @@
 <template>
   <div class="app-container">
     <div class="head">
-      <div class="id">
-        <span @click="handleLogout" class="logout-btn">
-          <el-icon><SwitchButton /></el-icon>
-          <span>退出</span>
-        </span>
-        <span>欢迎您！{{ userStore.userInfo?.name || '管理员' }}</span>
+      <div class="brand-area" @click="handleGoHome" title="点击返回系统主页">
+        <span class="system-title">🐾 太原理工大学 · 校园流浪动物管理系统</span>
+      </div>
+      <div class="head-right">
+        <el-button 
+          type="primary" 
+          plain 
+          size="default" 
+          class="home-btn-header"
+          @click="handleGoHome"
+        >
+          <el-icon style="margin-right: 4px;"><House /></el-icon>
+          返回主界面
+        </el-button>
+        <div class="id">
+          <span>欢迎您！{{ userStore.userInfo?.name || '管理员' }}</span>
+          <span @click="handleLogout" class="logout-btn">
+            <el-icon><SwitchButton /></el-icon>
+            <span>退出</span>
+          </span>
+        </div>
       </div>
     </div>
     <div class="main-content">
@@ -29,6 +44,12 @@
           @close="handleClose"
           @select="handleMenuSelect"
         >
+          <!-- 1. 系统主页 / 返回主界面 -->
+          <el-menu-item index="/">
+            <el-icon><House /></el-icon>
+            <template #title>系统主页</template>
+          </el-menu-item>
+
           <el-sub-menu v-if="hasPermission('pet:read')" index="1">
             <template #title>
               <el-icon><Star /></el-icon>
@@ -59,10 +80,19 @@
             <el-icon><Medal /></el-icon>
             <template #title>志愿活动</template>
           </el-menu-item>
+
+          <!-- 权限树设置 (仅 admin 登录可见，president 不可查看) -->
+          <el-menu-item 
+            v-if="userStore.userInfo?.role === 'admin'" 
+            index="/permissions"
+          >
+            <el-icon><Key /></el-icon>
+            <template #title>权限树设置</template>
+          </el-menu-item>
         </el-menu>
       </div>
-       <div class="content-area">
-      <router-view />
+      <div class="content-area">
+        <router-view />
       </div>
     </div>
     
@@ -74,7 +104,7 @@
 import { onMounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus' 
-import { Star, MapLocation, User, MessageBox, SwitchButton ,Bell, UserFilled, Medal } from '@element-plus/icons-vue'
+import { Star, MapLocation, User, MessageBox, SwitchButton, Bell, UserFilled, Medal, House, Key } from '@element-plus/icons-vue'
 import { useUserStore } from '../stores/user'
 import request from '../components/request'
 import FloatAIQA from '../components/FloatAIQA.vue'
@@ -94,6 +124,10 @@ watch(() => route.path, (newPath) => {
 
 const handleMenuSelect = (index: string): void => {
   router.push(index)
+}
+
+const handleGoHome = (): void => {
+  router.push('/')
 }
 
 const handleLogout = async (): Promise<void> => {
@@ -156,11 +190,34 @@ onMounted(() => {
   display: flex;
   background-color: #f5f5f5;
   align-items: center;
+  justify-content: space-between;
   border-bottom: 1px solid #e4e7ed;
   padding: 0 20px;
 }
+.brand-area {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+.system-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  transition: color 0.3s;
+}
+.system-title:hover {
+  color: #409eff;
+}
+.head-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.home-btn-header {
+  border-radius: 6px;
+  font-weight: 500;
+}
 .id {
-  margin-left: auto;
   display: flex;
   align-items: center;
   font-size: 14px;

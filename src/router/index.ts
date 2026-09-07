@@ -15,6 +15,7 @@ const MaterialManagement = () => import('../views/MaterialManagement.vue')
 const Login = () => import('../views/Login.vue')
 const Announcement = () => import('../views/Announcement.vue')
 const VolunteerActivity = () => import('../views/VolunteerActivity.vue')
+const PermissionManagement = () => import('../views/PermissionManagement.vue')
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -86,6 +87,12 @@ const router = createRouter({
           name: 'volunteer',
           component: VolunteerActivity,
           meta: { roles: ['admin'], permissions: ['activity:read'] }
+        },
+        {
+          path: 'permissions',
+          name: 'permissions',
+          component: PermissionManagement,
+          meta: { roles: ['admin'], permissions: ['user:write'] }
         }
       ]
     }

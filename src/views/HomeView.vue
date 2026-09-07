@@ -19,7 +19,7 @@
             </div>
             <el-icon class="card-arrow"><ArrowRight /></el-icon>
           </div>
-          <div class="data-card volunteer-card" @click="toPage('/students1')">
+          <div class="data-card volunteer-card" @click="handleVolunteerCardClick">
             <div class="card-content">
               <p class="card-label">志愿者数量</p>
               <p class="card-value">{{ volunteerCount }}</p>
@@ -97,6 +97,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ArrowRight, Bell } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '../stores/user'
 import service from '../components/request.ts'
 // 按需引入 ECharts 核心模块和需要的组件
 import * as echarts from 'echarts/core'
@@ -162,6 +163,7 @@ interface AnnouncementItem {
 
 // ===================== 响应式数据 =====================
 const router = useRouter()
+const userStore = useUserStore()
 const loading = ref(false)
 
 // 原始数据（用于按年份过滤）
@@ -421,9 +423,12 @@ const fetchAllData = async () => {
     if (!chartRes.data.success) {
       throw new Error(chartRes.data.msg || '获取动物数据失败')
     }
-    const { cats, dogs, healthStatusData } = chartRes.data.data
+    const { cats, dogs, healthStatusData, volunteerCount: chartVolunteerCount } = chartRes.data.data
     rawCats = cats || []
     rawDogs = dogs || []
+    if (typeof chartVolunteerCount === 'number') {
+      volunteerCount.value = chartVolunteerCount
+    }
 
     // 2. 计算存活数量
     catCount.value = rawCats.filter(a => isAlive(a.healthStatus)).length
@@ -463,20 +468,28 @@ const fetchAllData = async () => {
     }
 
     // 6. 请求其他独立数据
-    const [volunteerRes, pointRes, materialRes] = await Promise.all([
-      service.get('/api/users', { params: { page: 1, pageSize: 1000, role: 'volunteer' } }),
+    const [pointRes, materialRes] = await Promise.all([
       service.get('/api/points'),
       service.get('/api/materials', { params: { page: 1, pageSize: 1000 } })
     ])
 
-    if (volunteerRes.data.success) {
-      volunteerCount.value = volunteerRes.data.data?.list?.length || 0
-    }
     if (pointRes.data.success) {
       pointCount.value = pointRes.data.data?.length || 0
     }
     if (materialRes.data.success) {
       materialData.value = materialRes.data.data?.list || []
+    }
+
+    // 若主页接口未提供志愿者数量且具备 user:read 权限，则补充查询
+    if (volunteerCount.value === 0 && userStore.hasPermission('user:read')) {
+      try {
+        const volunteerRes = await service.get('/api/users', { params: { page: 1, pageSize: 1000, role: 'volunteer' } })
+        if (volunteerRes.data?.success) {
+          volunteerCount.value = volunteerRes.data.data?.list?.length || 0
+        }
+      } catch (err) {
+        console.warn('获取志愿者列表失败（非阻断）：', err)
+      }
     }
 
     // 等待 DOM 更新后渲染图表
@@ -495,6 +508,14 @@ const fetchAllData = async () => {
 // ===================== 页面跳转 =====================
 const toPage = (path: string) => {
   router.push(path)
+}
+
+const handleVolunteerCardClick = () => {
+  if (userStore.hasPermission('user:read')) {
+    toPage('/students1')
+  } else {
+    ElMessage.info('当前账号仅支持查看志愿者统计概览，无学生档案维护权限')
+  }
 }
 
 // ===================== 计算属性 =====================
