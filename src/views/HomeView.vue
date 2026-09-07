@@ -801,7 +801,8 @@ onUnmounted(() => {
   .card-arrow { font-size: 16px; }
   .tables-row { grid-template-columns: 1fr; gap: 12px; min-height: auto; }
   .table-card { padding: 16px; min-height: 280px; }
-  .table-title { font-size: 14px; margin-bottom: 12px; padding-bottom: 6px; }
+  .table-title { font-size: 14px; margin-bottom: 12px; padding-bottom: 6px; flex-wrap: wrap; }
+  .table-title span { font-size: 13px; }
   .table-placeholder { min-height: 220px; }
   .bottom-cards { grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .page-footer { padding: 16px; }
@@ -818,26 +819,77 @@ onUnmounted(() => {
   .announcement-description { font-size: 11px; }
   .announcement-time { font-size: 10px; }
 }
+
+/* 小屏幕适配 (480px - 768px) */
 @media screen and (max-width: 480px) {
   .home-page { padding: 8px; gap: 8px; }
   .data-card-container { padding: 12px; }
-  .cards-wrapper { gap: 6px; }
+  .cards-wrapper { grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .data-card { padding: 12px 6px; }
   .card-label { font-size: 11px; }
   .card-value { font-size: 20px; }
   .card-arrow { font-size: 14px; }
   .table-card { padding: 12px; min-height: 240px; }
-  .table-title { font-size: 13px; }
+  .table-title { font-size: 13px; flex-wrap: wrap; }
+  .table-title span { font-size: 12px; max-width: 150px; }
+  .table-title .el-select { width: 80px !important; margin-left: 8px !important; }
   .table-placeholder { min-height: 180px; }
+  /* 底部卡片改为单列 */
+  .bottom-cards { grid-template-columns: 1fr; gap: 8px; }
   .page-footer { padding: 12px; }
   .urgent-item { font-size: 11px; }
   .announcement-card { padding: 12px; }
   .announcement-title { font-size: 13px; }
   .announcement-icon { font-size: 14px; }
-  .announcement-list { gap: 8px; max-height: 220px; }
+  .announcement-list { gap: 8px; max-height: 200px; }
   .announcement-item { padding: 8px; }
   .announcement-title-text { font-size: 12px; }
   .announcement-description { font-size: 10px; }
   .announcement-time { font-size: 9px; }
+}
+
+/* 超小屏幕适配 (< 375px) */
+@media screen and (max-width: 374px) {
+  .home-page { padding: 6px; gap: 6px; }
+  .data-card-container { padding: 10px; }
+  .data-title { font-size: 14px; padding-left: 4px; border-left-width: 2px; }
+  /* 数据卡片改为单列 */
+  .cards-wrapper { grid-template-columns: 1fr; gap: 6px; }
+  .data-card { padding: 10px 8px; }
+  .card-label { font-size: 12px; margin-bottom: 2px; }
+  .card-value { font-size: 22px; }
+  .card-arrow { font-size: 16px; }
+  .tables-row { gap: 6px; }
+  .table-card { padding: 10px; min-height: 200px; }
+  .table-title { font-size: 12px; margin-bottom: 8px; }
+  .table-title span { font-size: 11px; max-width: 120px; }
+  .table-title .el-select { width: 70px !important; }
+  .table-placeholder { min-height: 160px; }
+  .bottom-cards { gap: 6px; }
+  .page-footer { padding: 10px; }
+  .footer-title { font-size: 13px; margin-bottom: 6px; }
+  .urgent-item { font-size: 11px; line-height: 1.6; padding-left: 16px; }
+  .announcement-card { padding: 10px; }
+  .announcement-title { font-size: 12px; margin-bottom: 8px; padding-bottom: 6px; }
+  .announcement-icon { font-size: 12px; margin-right: 3px; }
+  .announcement-list { gap: 6px; max-height: 180px; }
+  .announcement-item { padding: 6px; border-left-width: 3px; }
+  .announcement-title-text { font-size: 11px; }
+  .announcement-description { font-size: 10px; line-height: 1.3; }
+  .announcement-time { font-size: 9px; }
+}
+
+/* 横屏模式优化 */
+@media screen and (max-width: 896px) and (orientation: landscape) {
+  .home-page { padding: 10px; }
+  .cards-wrapper { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .data-card { padding: 10px 6px; }
+  .card-label { font-size: 11px; }
+  .card-value { font-size: 18px; }
+  .tables-row { grid-template-columns: repeat(2, 1fr); gap: 10px; min-height: 200px; }
+  .table-card { min-height: 200px; }
+  .table-placeholder { min-height: 150px; }
+  .bottom-cards { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .announcement-list { max-height: 150px; }
 }
 </style>

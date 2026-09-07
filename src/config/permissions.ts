@@ -1,0 +1,59 @@
+export const PERMISSIONS = {
+  PET_READ: 'pet:read',
+  PET_WRITE: 'pet:write',
+  POINT_READ: 'point:read',
+  POINT_WRITE: 'point:write',
+  MATERIAL_READ: 'material:read',
+  MATERIAL_WRITE: 'material:write',
+  USER_READ: 'user:read',
+  USER_WRITE: 'user:write',
+  ANNOUNCEMENT_READ: 'announcement:read',
+  ANNOUNCEMENT_WRITE: 'announcement:write',
+  ACTIVITY_READ: 'activity:read',
+  ACTIVITY_WRITE: 'activity:write',
+  ACTIVITY_JOIN: 'activity:join',
+  AI_USE: 'ai:use'
+} as const
+
+export const ROLE_PERMISSIONS: Record<string, string[]> = {
+  president: Object.values(PERMISSIONS),
+  admin: [
+    PERMISSIONS.PET_READ,
+    PERMISSIONS.PET_WRITE,
+    PERMISSIONS.POINT_READ,
+    PERMISSIONS.POINT_WRITE,
+    PERMISSIONS.MATERIAL_READ,
+    PERMISSIONS.MATERIAL_WRITE,
+    PERMISSIONS.USER_READ,
+    PERMISSIONS.USER_WRITE,
+    PERMISSIONS.ANNOUNCEMENT_READ,
+    PERMISSIONS.ANNOUNCEMENT_WRITE,
+    PERMISSIONS.ACTIVITY_READ,
+    PERMISSIONS.ACTIVITY_WRITE,
+    PERMISSIONS.ACTIVITY_JOIN,
+    PERMISSIONS.AI_USE
+  ],
+  student: [
+    PERMISSIONS.PET_READ,
+    PERMISSIONS.POINT_READ,
+    PERMISSIONS.MATERIAL_READ,
+    PERMISSIONS.ANNOUNCEMENT_READ,
+    PERMISSIONS.ACTIVITY_READ,
+    PERMISSIONS.ACTIVITY_JOIN,
+    PERMISSIONS.AI_USE
+  ],
+  volunteer: [
+    PERMISSIONS.PET_READ,
+    PERMISSIONS.POINT_READ,
+    PERMISSIONS.MATERIAL_READ,
+    PERMISSIONS.ANNOUNCEMENT_READ,
+    PERMISSIONS.ACTIVITY_READ,
+    PERMISSIONS.ACTIVITY_JOIN,
+    PERMISSIONS.AI_USE
+  ]
+}
+
+export function getFallbackPermissions(role?: string) {
+  if (!role) return []
+  return ROLE_PERMISSIONS[role] || []
+}

@@ -12,9 +12,12 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     BaseLoading: typeof import('./src/components/BaseLoading.vue')['default']
+    Counter: typeof import('./src/components/Counter.vue')['default']
     ElAlert: typeof import('element-plus/es')['ElAlert']
     ElButton: typeof import('element-plus/es')['ElButton']
     ElCard: typeof import('element-plus/es')['ElCard']
+    ElCheckbox: typeof import('element-plus/es')['ElCheckbox']
+    ElCheckboxGroup: typeof import('element-plus/es')['ElCheckboxGroup']
     ElDatePicker: typeof import('element-plus/es')['ElDatePicker']
     ElDialog: typeof import('element-plus/es')['ElDialog']
     ElEmpty: typeof import('element-plus/es')['ElEmpty']
@@ -45,5 +48,8 @@ declare module 'vue' {
     SearchFilterBar: typeof import('./src/components/SearchFilterBar.vue')['default']
     StatusTag: typeof import('./src/components/StatusTag.vue')['default']
     TableCard: typeof import('./src/components/TableCard.vue')['default']
+  }
+  export interface GlobalDirectives {
+    vLoading: typeof import('element-plus/es')['ElLoadingDirective']
   }
 }

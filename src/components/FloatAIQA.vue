@@ -190,12 +190,12 @@ const streamAnswer = async (question: string): Promise<void> => {
     
     while (buffer.includes('\n')) {
       const newlineIndex = buffer.indexOf('\n')
-      const line = buffer.substring(0, newlineIndex)
-      buffer = buffer.substring(newlineIndex + 1)
+      const line = buffer.slice(0, newlineIndex)
+      buffer = buffer.slice(newlineIndex + 1)
 
       if (line.startsWith('data: ')) {
         try {
-          const dataStr = line.substring(6)
+          const dataStr = line.slice(6)
           if (dataStr.trim() === '[DONE]') {
             return
           }

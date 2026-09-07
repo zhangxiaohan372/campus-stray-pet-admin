@@ -29,7 +29,7 @@
           @close="handleClose"
           @select="handleMenuSelect"
         >
-          <el-sub-menu index="1">
+          <el-sub-menu v-if="hasPermission('pet:read')" index="1">
             <template #title>
               <el-icon><Star /></el-icon>
               <span>毛孩子数据</span>
@@ -39,23 +39,23 @@
               <el-menu-item index="/cats">小猫</el-menu-item> 
             </el-menu-item-group>
           </el-sub-menu>
-          <el-menu-item index="/school-map">
+          <el-menu-item v-if="hasPermission('point:read')" index="/school-map">
             <el-icon><MapLocation /></el-icon>
             <template #title>投喂点管理</template>
           </el-menu-item>
-          <el-menu-item index="/students1">
+          <el-menu-item v-if="hasPermission('user:read')" index="/students1">
             <el-icon><User /></el-icon>
             <template #title>学生信息</template>
           </el-menu-item>
-          <el-menu-item index="/management">
+          <el-menu-item v-if="hasPermission('material:read')" index="/management">
             <el-icon><MessageBox /></el-icon>
             <template #title>物资管理</template>
           </el-menu-item>
-          <el-menu-item index="/announcement">
+          <el-menu-item v-if="hasPermission('announcement:read')" index="/announcement">
             <el-icon><Bell /></el-icon>
             <template #title>通知</template>
           </el-menu-item>
-          <el-menu-item index="/volunteer">
+          <el-menu-item v-if="hasPermission('activity:read')" index="/volunteer">
             <el-icon><Medal /></el-icon>
             <template #title>志愿活动</template>
           </el-menu-item>
@@ -86,6 +86,7 @@ const route = useRoute()
 const isCollapse = ref(true)  
 const activeMenu = ref(route.path) 
 
+const hasPermission = (permission: string) => userStore.hasPermission(permission)
 
 watch(() => route.path, (newPath) => {
   activeMenu.value = newPath
