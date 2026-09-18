@@ -1,6 +1,12 @@
 <template>
   <router-view />
+  <FloatAIQA />
 </template>
+
+<script lang="ts" setup>
+import FloatAIQA from './components/FloatAIQA.vue'
+</script>
+
 <style>
 html, body, #app {
   width: 100%;

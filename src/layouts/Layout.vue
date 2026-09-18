@@ -2,7 +2,7 @@
   <div class="app-container">
     <div class="head">
       <div class="brand-area" @click="handleGoHome" title="点击返回系统主页">
-        <span class="system-title">🐾 太原理工大学 · 校园流浪动物管理系统</span>
+        <span class="system-title"> 太原理工大学 · 校园流浪动物管理系统</span>
       </div>
       <div class="head-right">
         <el-button 
@@ -96,7 +96,6 @@
       </div>
     </div>
     
-    <FloatAIQA />
   </div>
 </template>
 
@@ -107,7 +106,6 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Star, MapLocation, User, MessageBox, SwitchButton, Bell, UserFilled, Medal, House, Key } from '@element-plus/icons-vue'
 import { useUserStore } from '../stores/user'
 import request from '../components/request'
-import FloatAIQA from '../components/FloatAIQA.vue'
 
 const userStore = useUserStore()
 const router = useRouter()

@@ -1,572 +1,576 @@
 <template>
-  <div class="float-ai-container">
-    <div 
-      class="float-ai-trigger" 
-      @click="toggleChat"
-      :class="{ 'active': isOpen }"
-    >
-      <el-icon class="trigger-icon"><ChatDotRound /></el-icon>
-      <span class="notification-badge" v-if="hasNewMessage">●</span>
-    </div>
+  <div class="float-ai-wrap">
+    <!-- 触发按钮 -->
+    <transition name="btn-pop">
+      <button v-if="!isOpen" class="ai-trigger-btn" @click="openChat" title="AI 助手">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>AI 助手</span>
+      </button>
+    </transition>
 
-    <transition name="slide-up">
-      <div v-if="isOpen" class="float-ai-panel">
-        <div class="panel-header">
-          <div class="header-title">
-            <el-icon class="title-icon"><Comment /></el-icon>
-            <span>智能助手</span>
+    <!-- 对话浮窗 -->
+    <transition name="chat-pop">
+      <div v-if="isOpen" class="chat-window">
+
+        <!-- 头部 -->
+        <div class="chat-header">
+          <div class="header-left">
+            <span class="header-dot"></span>
+            <span class="header-title">AI 助手</span>
           </div>
-          <el-button class="close-btn" @click="isOpen = false">
-            <el-icon><Close /></el-icon>
-          </el-button>
+          <div class="header-right">
+            <button class="hdr-btn" title="清空对话" @click="clearMessages">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none">
+                <polyline points="3 6 5 6 21 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <path d="M9 6V4h6v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button class="hdr-btn" title="关闭" @click="closeChat">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none">
+                <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
         </div>
 
-        <div class="panel-body" ref="bodyRef">
-          <div 
-            v-for="(msg, index) in messages" 
-            :key="index" 
-            :class="['message-item', { 'user': msg.type === 'user', 'bot': msg.type === 'bot' }]"
-          >
-            <div class="message-avatar">
-              <el-icon v-if="msg.type === 'user'"><User /></el-icon>
-              <el-icon v-else><Comment /></el-icon>
+        <!-- 消息区 -->
+        <div class="chat-body" ref="bodyRef">
+          <!-- 欢迎态 -->
+          <div v-if="messages.length === 0" class="welcome">
+            <p class="welcome-title">有什么可以帮助你？</p>
+            <div class="quick-list">
+              <button
+                v-for="q in quickList"
+                :key="q"
+                class="quick-item"
+                @click="sendQuick(q)"
+              >{{ q }}</button>
             </div>
-            <div class="message-bubble" :class="{ 'markdown-body': msg.type === 'bot' }">
-              <span v-if="msg.type === 'user'">{{ msg.content }}</span>
-              <span v-else v-html="renderMarkdown(msg.content)"></span>
+          </div>
+
+          <!-- 消息列表 -->
+          <template v-else>
+            <div
+              v-for="(msg, i) in messages"
+              :key="i"
+              class="msg-row"
+              :class="msg.role === 'user' ? 'msg-user' : 'msg-ai'"
+            >
+              <div class="bubble" :class="msg.role === 'user' ? 'bubble-user' : 'bubble-ai'">
+                <!-- 使用 pre-wrap 防止流式时抖动 -->
+                <span class="bubble-text">{{ msg.content }}</span>
+                <span
+                  v-if="msg.role === 'ai' && isStreaming && i === messages.length - 1"
+                  class="cursor"
+                >|</span>
+              </div>
+              <div class="msg-time">{{ msg.time }}</div>
+            </div>
+          </template>
+
+          <!-- AI 思考中 -->
+          <div v-if="isLoading && !isStreaming" class="msg-row msg-ai">
+            <div class="bubble bubble-ai loading">
+              <span class="dot"></span>
+              <span class="dot"></span>
+              <span class="dot"></span>
             </div>
           </div>
         </div>
 
-        <div class="panel-footer">
-          <el-input 
-            v-model="question" 
-            placeholder="输入问题..."
-            @keyup.enter="handleSend"
-            :disabled="loading"
-          />
-          <el-button 
-            type="primary" 
-            @click="handleSend" 
-            :loading="loading"
-            size="small"
-          >
-            <el-icon><Promotion /></el-icon>
-          </el-button>
+        <!-- 输入区 -->
+        <div class="chat-footer">
+          <div class="input-box" :class="{ 'input-focus': focused }">
+            <textarea
+              ref="inputRef"
+              v-model="inputText"
+              class="input"
+              placeholder="输入消息… Enter 发送，Shift+Enter 换行"
+              rows="1"
+              :disabled="isLoading"
+              @focus="focused = true"
+              @blur="focused = false"
+              @keydown.enter.exact.prevent="handleSend"
+              @input="autoResize"
+            />
+            <button
+              class="send-btn"
+              :disabled="!inputText.trim() || isLoading"
+              @click="handleSend"
+            >
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+                <line x1="22" y1="2" x2="11" y2="13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              </svg>
+            </button>
+          </div>
+          <p class="footer-hint">由本地 AI 服务驱动</p>
         </div>
 
-        <div class="quick-tips">
-          <span class="tips-label">快速提问：</span>
-          <el-tag 
-            v-for="tip in quickTips" 
-            :key="tip" 
-            size="small" 
-            @click="quickSend(tip)"
-            class="tip-tag"
-          >
-            {{ tip }}
-          </el-tag>
-        </div>
       </div>
     </transition>
   </div>
 </template>
 
-<script setup lang="ts">
+<script lang="ts" setup>
 import { ref, nextTick } from 'vue'
-import { ChatDotRound, Comment, User, Close, Promotion } from '@element-plus/icons-vue'
-import { marked } from 'marked'
 import { useUserStore } from '../stores/user'
 
-marked.setOptions({
-  breaks: true,
-  gfm: true
+interface Msg {
+  role: 'user' | 'ai'
+  content: string
+  time: string
+}
+
+const isOpen     = ref(false)
+const isLoading  = ref(false)
+const isStreaming = ref(false)
+const inputText  = ref('')
+const focused    = ref(false)
+const messages   = ref<Msg[]>([])
+const bodyRef    = ref<HTMLElement | null>(null)
+const inputRef   = ref<HTMLTextAreaElement | null>(null)
+const userStore = useUserStore()
+const sessionId = ref(crypto.randomUUID())
+
+const quickList = ['系统有哪些功能？', '怎么添加流浪动物？', '如何管理志愿活动？']
+
+const now = () => {
+  const d = new Date()
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+}
+
+const scrollBottom = () => nextTick(() => {
+  if (bodyRef.value) bodyRef.value.scrollTop = bodyRef.value.scrollHeight
 })
 
-const isOpen = ref(false)
-const hasNewMessage = ref(false)
-const question = ref('')
-const loading = ref(false)
-const bodyRef = ref<HTMLElement | null>(null)
-const userStore = useUserStore()
-
-interface Message {
-  type: 'user' | 'bot'
-  content: string
+const openChat = () => {
+  isOpen.value = true
+  nextTick(() => inputRef.value?.focus())
+}
+const closeChat = () => { isOpen.value = false }
+const clearMessages = () => {
+  if (isLoading.value) return
+  messages.value = []
+  sessionId.value = crypto.randomUUID()
 }
 
-const messages = ref<Message[]>([
-  { type: 'bot', content: '您好！有什么可以帮助您的？' }
-])
-
-const quickTips = [
-  '系统功能',
-  '小猫数量',
-  '小狗数量'
-]
-
-const renderMarkdown = (content: string): string => {
-  return marked.parse(content) as string
+const autoResize = () => {
+  const el = inputRef.value
+  if (!el) return
+  el.style.height = 'auto'
+  el.style.height = Math.min(el.scrollHeight, 112) + 'px'
 }
 
-const toggleChat = () => {
-  isOpen.value = !isOpen.value
-  if (isOpen.value) {
-    hasNewMessage.value = false
-    nextTick(() => {
-      if (bodyRef.value) {
-        bodyRef.value.scrollTop = bodyRef.value.scrollHeight
-      }
-    })
-  }
+const sendQuick = (q: string) => {
+  inputText.value = q
+  handleSend()
 }
 
 const handleSend = async () => {
-  if (!question.value.trim() || loading.value) return
+  const text = inputText.value.trim()
+  if (!text || isLoading.value) return
 
-  messages.value.push({ type: 'user', content: question.value })
-  const tempQuestion = question.value
-  question.value = ''
+  messages.value.push({ role: 'user', content: text, time: now() })
+  inputText.value = ''
+  if (inputRef.value) inputRef.value.style.height = 'auto'
+  scrollBottom()
+  isLoading.value = true
 
-  await nextTick(() => {
-    if (bodyRef.value) {
-      bodyRef.value.scrollTop = bodyRef.value.scrollHeight
+  const userId = userStore.userInfo?.id
+  if (userId == null) {
+    messages.value.push({ role: 'ai', content: '请先登录后使用 AI 助手。', time: now() })
+    isLoading.value = false
+    scrollBottom()
+    return
+  }
+
+  let answer: Msg | null = null
+  const appendAnswer = (content: string) => {
+    if (!answer) {
+      answer = { role: 'ai', content: '', time: now() }
+      messages.value.push(answer)
     }
-  })
+    answer.content += content
+    scrollBottom()
+  }
 
-  loading.value = true
+  const processEvent = (raw: string) => {
+    const data = raw.split('\n').filter(line => line.startsWith('data:'))
+      .map(line => line.slice(5).trimStart()).join('\n')
+    if (!data) return
+    const event = JSON.parse(data) as { type: string; content?: string; message?: string }
+    if (event.type === 'error') throw new Error(event.message || 'AI 服务出错')
+    if (event.type === 'token' && event.content) {
+      isStreaming.value = true
+      appendAnswer(event.content)
+    }
+  }
 
   try {
-    await streamAnswer(tempQuestion)
-  } catch (err) {
-    messages.value.push({ type: 'bot', content: '网络错误，请稍后重试' })
-    console.error('AI问答出错：', err)
-  } finally {
-    loading.value = false
-    await nextTick(() => {
-      if (bodyRef.value) {
-        bodyRef.value.scrollTop = bodyRef.value.scrollHeight
-      }
+    const response = await fetch('/agent-api/chat/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: text,
+        user_id: String(userId),
+        session_id: sessionId.value,
+      }),
     })
-  }
-}
+    if (!response.ok) throw new Error(`AI 请求失败（HTTP ${response.status}）`)
+    if (!response.body) throw new Error('浏览器无法读取流式响应')
 
-const streamAnswer = async (question: string): Promise<void> => {
-  if (!userStore.isLogin || !userStore.userInfo?.token) {
-    throw new Error('请先登录')
-  }
-
-  const response = await fetch('/api/ai/qa/stream', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${userStore.userInfo.token}`
-    },
-    body: JSON.stringify({ question })
-  })
-
-  if (!response.ok) {
-    throw new Error('请求失败')
-  }
-
-  const reader = response.body?.getReader()
-  if (!reader) {
-    throw new Error('无法获取响应流')
-  }
-
-  const decoder = new TextDecoder('utf-8')
-  let buffer = ''
-  let answerIndex = messages.value.length
-  messages.value.push({ type: 'bot', content: '' })
-
-  while (true) {
-    const { done, value } = await reader.read()
-    
-    if (done) {
-      break
-    }
-
-    buffer += decoder.decode(value, { stream: true })
-    
-    while (buffer.includes('\n')) {
-      const newlineIndex = buffer.indexOf('\n')
-      const line = buffer.slice(0, newlineIndex)
-      buffer = buffer.slice(newlineIndex + 1)
-
-      if (line.startsWith('data: ')) {
-        try {
-          const dataStr = line.slice(6)
-          if (dataStr.trim() === '[DONE]') {
-            return
-          }
-
-          const data = JSON.parse(dataStr)
-          const answerMessage = messages.value[answerIndex]
-          if (data.type === 'chunk' && data.content && answerMessage) {
-            answerMessage.content += data.content
-            nextTick(() => {
-              if (bodyRef.value) {
-                bodyRef.value.scrollTop = bodyRef.value.scrollHeight
-              }
-            })
-          } else if (data.type === 'end') {
-            return
-          } else if (data.type === 'error') {
-            if (answerMessage) {
-              answerMessage.content = '回答失败：' + data.content
-            }
-            throw new Error(data.content)
-          }
-        } catch (err) {
-          console.error('解析流式数据失败:', err)
-        }
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      buffer += done ? decoder.decode() : decoder.decode(value, { stream: true })
+      buffer = buffer.replace(/\r\n/g, '\n')
+      let boundary = buffer.indexOf('\n\n')
+      while (boundary !== -1) {
+        processEvent(buffer.slice(0, boundary))
+        buffer = buffer.slice(boundary + 2)
+        boundary = buffer.indexOf('\n\n')
+      }
+      if (done) {
+        if (buffer.trim()) processEvent(buffer)
+        break
       }
     }
+    if (!answer) appendAnswer('AI 没有返回内容，请稍后重试。')
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'AI 请求失败'
+    appendAnswer(answer ? `\n\n[请求中断：${message}]` : `请求失败：${message}`)
+  } finally {
+    isLoading.value = false
+    isStreaming.value = false
   }
-}
-
-const quickSend = (tip: string) => {
-  question.value = tip
-  handleSend()
 }
 </script>
 
-<style lang="scss" scoped>
-.float-ai-container {
-  position: fixed;
-  right: 40px;
-  bottom: 40px;
-  z-index: 9999;
+<style scoped>
+/* ── 主题色变量 ── */
+:root {
+  --primary: #409eff;
+}
+/* scoped 内使用 */
+.float-ai-wrap {
+  --primary: #409eff;
 }
 
-.float-ai-trigger {
-  width: 60px;
-  height: 60px;
+/* ── 定位 ── */
+.float-ai-wrap {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif;
+}
+
+/* ── 触发按钮 ── */
+.ai-trigger-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 18px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  transition: opacity 0.2s, box-shadow 0.2s;
+}
+.ai-trigger-btn:hover {
+  opacity: 0.88;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.16);
+}
+
+/* ── 对话窗口 ── */
+.chat-window {
+  width: 360px;
+  height: 540px;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #e4e7ed;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  overflow: hidden;
+}
+
+/* ── 头部 ── */
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--primary);
+  flex-shrink: 0;
+}
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.header-dot {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: #409eff;
+  background: #fff;
+  opacity: 0.85;
+}
+.header-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: 0.3px;
+}
+.header-right {
+  display: flex;
+  gap: 4px;
+}
+.hdr-btn {
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: rgba(255,255,255,0.18);
+  color: #fff;
+  border-radius: 5px;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 20px rgba(64, 158, 255, 0.4);
-  cursor: pointer;
-  transition: all 0.3s ease;
-  position: relative;
-
-  &:hover {
-    transform: scale(1.1);
-    box-shadow: 0 6px 30px rgba(64, 158, 255, 0.5);
-  }
-
-  &.active {
-    background: #66b1ff;
-  }
-
-  .trigger-icon {
-    font-size: 24px;
-    color: white;
-  }
-
-  .notification-badge {
-    position: absolute;
-    top: -4px;
-    right: -4px;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: #ff4757;
-    color: white;
-    font-size: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+  transition: background 0.15s;
+}
+.hdr-btn:hover {
+  background: rgba(255,255,255,0.32);
 }
 
-.float-ai-panel {
-  position: absolute;
-  right: 0;
-  bottom: 80px;
-  width: 360px;
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-  overflow: hidden;
-  animation: slideUp 0.3s ease;
-}
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.slide-up-enter-active,
-.slide-up-leave-active {
-  transition: all 0.3s ease;
-}
-
-.slide-up-enter-from,
-.slide-up-leave-to {
-  opacity: 0;
-  transform: translateY(20px);
-}
-
-.panel-header {
-  background: #409eff;
-  padding: 16px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-
-  .header-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: white;
-    font-weight: 500;
-    font-size: 15px;
-  }
-
-  .title-icon {
-    font-size: 18px;
-  }
-
-  .close-btn {
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(255, 255, 255, 0.2);
-    border: none;
-    border-radius: 50%;
-
-    :deep(.el-icon) {
-      color: white;
-      font-size: 14px;
-    }
-  }
-}
-
-.panel-body {
-  height: 280px;
+/* ── 消息区 ── */
+.chat-body {
+  flex: 1;
   overflow-y: auto;
-  padding: 16px;
-  background: #f8f9fa;
-}
-
-.message-item {
+  padding: 16px 14px;
   display: flex;
-  gap: 10px;
-  margin-bottom: 16px;
-
-  &.user {
-    flex-direction: row-reverse;
-
-    .message-bubble {
-      background: #409eff;
-      color: white;
-      border-radius: 12px 4px 12px 12px;
-    }
-  }
-
-  &.bot {
-    .message-bubble {
-      background: white;
-      border: 1px solid #e0e0e0;
-      border-radius: 4px 12px 12px 12px;
-    }
-  }
-
-  .message-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    background: #e5e9f2;
-
-    :deep(.el-icon) {
-      font-size: 14px;
-      color: #666;
-    }
-
-    .user & {
-      background: #409eff;
-
-      :deep(.el-icon) {
-        color: white;
-      }
-    }
-  }
-
-  .message-bubble {
-    max-width: 75%;
-    padding: 10px 14px;
-    font-size: 14px;
-    line-height: 1.5;
-    white-space: pre-wrap;
-
-    &.markdown-body {
-      white-space: normal;
-      
-      :deep(h1), :deep(h2), :deep(h3), :deep(h4), :deep(h5), :deep(h6) {
-        margin: 8px 0;
-        font-weight: 600;
-        line-height: 1.3;
-      }
-      
-      :deep(h1) { font-size: 18px; }
-      :deep(h2) { font-size: 16px; }
-      :deep(h3) { font-size: 15px; }
-      
-      :deep(p) {
-        margin: 6px 0;
-      }
-      
-      :deep(ul), :deep(ol) {
-        margin: 6px 0;
-        padding-left: 20px;
-      }
-      
-      :deep(li) {
-        margin: 4px 0;
-      }
-      
-      :deep(code) {
-        background: #f5f5f5;
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-family: 'Consolas', 'Monaco', monospace;
-        font-size: 13px;
-      }
-      
-      :deep(pre) {
-        background: #f5f5f5;
-        padding: 10px;
-        border-radius: 6px;
-        overflow-x: auto;
-        margin: 8px 0;
-        
-        code {
-          background: transparent;
-          padding: 0;
-        }
-      }
-      
-      :deep(blockquote) {
-        border-left: 3px solid #409eff;
-        padding-left: 10px;
-        margin: 8px 0;
-        color: #666;
-      }
-      
-      :deep(strong) {
-        font-weight: 600;
-      }
-      
-      :deep(em) {
-        font-style: italic;
-      }
-      
-      :deep(a) {
-        color: #409eff;
-        text-decoration: none;
-        
-        &:hover {
-          text-decoration: underline;
-        }
-      }
-      
-      :deep(table) {
-        border-collapse: collapse;
-        margin: 8px 0;
-        
-        th, td {
-          border: 1px solid #ddd;
-          padding: 6px 10px;
-        }
-        
-        th {
-          background: #f5f5f5;
-          font-weight: 600;
-        }
-      }
-      
-      :deep(hr) {
-        border: none;
-        border-top: 1px solid #e0e0e0;
-        margin: 10px 0;
-      }
-    }
-  }
+  flex-direction: column;
+  gap: 12px;
+  background: #fafafa;
+  /* 防止流式时宽度跳动 */
+  overflow-anchor: auto;
+}
+.chat-body::-webkit-scrollbar {
+  width: 4px;
+}
+.chat-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-body::-webkit-scrollbar-thumb {
+  background: #d4d7de;
+  border-radius: 4px;
 }
 
-.panel-footer {
+/* ── 欢迎区 ── */
+.welcome {
+  margin: auto;
+  text-align: center;
+  padding: 20px 0;
+}
+.welcome-icon {
+  font-size: 40px;
+  margin-bottom: 10px;
+}
+.welcome-title {
+  margin: 0 0 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #111;
+}
+.quick-list {
   display: flex;
-  gap: 10px;
-  padding: 12px 16px;
-  border-top: 1px solid #e0e0e0;
-
-  :deep(.el-input) {
-    flex: 1;
-  }
-
-  :deep(.el-button) {
-    padding: 0 16px;
-  }
+  flex-direction: column;
+  gap: 7px;
+}
+.quick-item {
+  background: #fff;
+  border: 1px solid #e4e7ed;
+  color: #111;
+  border-radius: 6px;
+  padding: 9px 13px;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.quick-item:hover {
+  border-color: var(--primary);
+  background: #f0f7ff;
 }
 
-.quick-tips {
-  padding: 12px 16px;
-  background: #f5f7fa;
-  border-top: 1px solid #e0e0e0;
-
-  .tips-label {
-    font-size: 12px;
-    color: #909399;
-    margin-right: 8px;
-  }
-
-  .tip-tag {
-    margin-right: 6px;
-    margin-bottom: 6px;
-    cursor: pointer;
-    font-size: 12px;
-
-    &:hover {
-      background: #409eff;
-      color: white;
-    }
-  }
+/* ── 消息行 ── */
+.msg-row {
+  display: flex;
+  flex-direction: column;
+}
+.msg-user {
+  align-items: flex-end;
+}
+.msg-ai {
+  align-items: flex-start;
 }
 
-@media (max-width: 480px) {
-  .float-ai-container {
-    right: 20px;
-    bottom: 20px;
-  }
+/* ── 气泡 ── */
+.bubble {
+  max-width: 78%;
+  padding: 9px 13px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.65;
+  word-break: break-word;
+  /* 固定宽度基准，防止流式抖动 */
+  min-width: 0;
+  box-sizing: border-box;
+}
+.bubble-user {
+  background: var(--primary);
+  color: #fff;
+  border-bottom-right-radius: 3px;
+}
+.bubble-ai {
+  background: #fff;
+  color: #111;
+  border: 1px solid #e4e7ed;
+  border-bottom-left-radius: 3px;
+}
+/* 流式文本：pre-wrap 保持换行，不强制撑宽 */
+.bubble-text {
+  display: block;
+  white-space: pre-wrap;
+}
+.cursor {
+  display: inline-block;
+  color: var(--primary);
+  font-weight: 700;
+  animation: blink 0.7s step-end infinite;
+  margin-left: 1px;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+.msg-time {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 4px;
+  padding: 0 2px;
+}
 
-  .float-ai-panel {
-    width: calc(100vw - 60px);
-    max-width: 320px;
-  }
+/* ── Loading 三点 ── */
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 12px 16px;
+}
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #c0c4cc;
+  animation: bounce 1.2s infinite ease-in-out;
+}
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(1);   opacity: 0.5; }
+  40%           { transform: scale(1.3); opacity: 1;   }
+}
 
-  .float-ai-trigger {
-    width: 50px;
-    height: 50px;
+/* ── 输入区 ── */
+.chat-footer {
+  flex-shrink: 0;
+  padding: 10px 12px 10px;
+  border-top: 1px solid #e4e7ed;
+  background: #fff;
+}
+.input-box {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  padding: 7px 8px 7px 12px;
+  background: #fff;
+  transition: border-color 0.2s;
+}
+.input-box.input-focus {
+  border-color: var(--primary);
+}
+.input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  color: #111;
+  background: transparent;
+  resize: none;
+  line-height: 1.5;
+  max-height: 112px;
+  font-family: inherit;
+}
+.input::placeholder {
+  color: #c0c4cc;
+}
+.send-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s;
+}
+.send-btn:disabled {
+  background: #c0c4cc;
+  cursor: not-allowed;
+}
+.send-btn:not(:disabled):hover {
+  opacity: 0.85;
+}
+.footer-hint {
+  margin: 6px 0 0;
+  text-align: center;
+  font-size: 11px;
+  color: #c0c4cc;
+}
 
-    .trigger-icon {
-      font-size: 20px;
-    }
-  }
+/* ── 动画 ── */
+.btn-pop-enter-active  { animation: popIn 0.25s ease; }
+.btn-pop-leave-active  { animation: popIn 0.15s ease reverse; }
+.chat-pop-enter-active { animation: slideUp 0.25s ease; }
+.chat-pop-leave-active { animation: slideUp 0.15s ease reverse; }
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.85); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 </style>

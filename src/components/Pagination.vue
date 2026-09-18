@@ -49,6 +49,7 @@ const innerPageSize = computed({
   set: (val) => emit('update:pageSize', val)
 })
 
+
 watch(
   () => [props.total, props.pageSize],
   () => {
@@ -58,7 +59,9 @@ watch(
     }
   },
   { immediate: true }
+
 )
+
 </script>
 
 <style scoped>
