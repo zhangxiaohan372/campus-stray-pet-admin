@@ -47,7 +47,7 @@
 
 <script lang="ts" setup>
 import { ref } from 'vue'
-import type { Msg } from '../../composables/useAiChat'
+import type { Msg } from '../../composables'
 
 defineProps<{
   messages: Msg[]

@@ -69,8 +69,7 @@ export function useDraggable(width = 360, height = 540, initialMargin = 24) {
     window.removeEventListener('resize', onResize)
     window.removeEventListener('pointermove', onPointerMove)
     window.removeEventListener('pointerup', onPointerUp)
-  }
-  )
+  })
 
   return {
     pos,

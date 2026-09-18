@@ -1,5 +1,6 @@
 import { ref, nextTick, type Ref } from 'vue'
-import { useUserStore } from '../stores/user'
+import { useUserStore } from '../../../stores/user'
+import { chatStreamApi, type ChatStreamEvent } from '../../../api/ai'
 
 export interface Msg {
   role: 'user' | 'ai'
@@ -63,7 +64,7 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
       const data = raw.split('\n').filter(line => line.startsWith('data:'))
         .map(line => line.slice(5).trimStart()).join('\n')
       if (!data) return
-      const event = JSON.parse(data) as { type: string; content?: string; message?: string }
+      const event = JSON.parse(data) as ChatStreamEvent
       if (event.type === 'error') throw new Error(event.message || 'AI 服务出错')
       if (event.type === 'token' && event.content) {
         isStreaming.value = true
@@ -72,14 +73,10 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
     }
 
     try {
-      const response = await fetch('/agent-api/chat/stream', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: trimmed,
-          user_id: String(userId),
-          session_id: sessionId.value,
-        }),
+      const response = await chatStreamApi({
+        message: trimmed,
+        user_id: String(userId),
+        session_id: sessionId.value,
       })
       if (!response.ok) throw new Error(`AI 请求失败（HTTP ${response.status}）`)
       if (!response.body) throw new Error('浏览器无法读取流式响应')

@@ -54,8 +54,7 @@
 
 <script lang="ts" setup>
 import { ref, computed, nextTick } from 'vue'
-import { useAiChat } from '../composables/useAiChat'
-import { useDraggable } from '../composables/useDraggable'
+import { useAiChat, useDraggable } from '../composables'
 import ChatHeader from './ai-chat/ChatHeader.vue'
 import ChatChatMessageList from './ai-chat/ChatMessageList.vue'
 import ChatInput from './ai-chat/ChatInput.vue'
