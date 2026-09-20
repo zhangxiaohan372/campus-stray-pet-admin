@@ -19,10 +19,11 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
     const d = new Date()
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
   }
-
+// 发消息或 AI 打字时，让聊天窗口的滚动条自动滑到最底部，保证你总能看到最新的一句话
   const scrollBottom = () => {
     nextTick(() => {
       if (scrollContainerRef?.value) {
+        //  “距离顶部的距离” 直接设置成 “整个内容的总高度” 时，滚动条就会被瞬间拉到最最底下。
         scrollContainerRef.value.scrollTop = scrollContainerRef.value.scrollHeight
       }
     })
