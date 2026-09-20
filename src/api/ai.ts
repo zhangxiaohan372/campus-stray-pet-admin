@@ -4,8 +4,8 @@
 
 export interface ChatStreamParams {
   message: string
-  user_id: string
   session_id: string
+  user_id?: string
 }
 
 export interface ChatStreamEvent {
@@ -17,12 +17,17 @@ export interface ChatStreamEvent {
 /**
  * 发送 AI 对话流式请求 (SSE)
  */
-export function chatStreamApi(params: ChatStreamParams): Promise<Response> {
+export function chatStreamApi(params: ChatStreamParams, token?: string): Promise<Response> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
   return fetch('/agent-api/chat/stream', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify(params),
   })
 }

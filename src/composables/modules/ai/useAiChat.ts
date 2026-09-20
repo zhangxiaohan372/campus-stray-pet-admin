@@ -43,8 +43,8 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
     scrollBottom()
     isLoading.value = true
 
-    const userId = userStore.userInfo?.id
-    if (userId == null) {
+    const token = userStore.userInfo?.token
+    if (!token) {
       messages.value.push({ role: 'ai', content: '请先登录后使用 AI 助手。', time: now() })
       isLoading.value = false
       scrollBottom()
@@ -76,9 +76,8 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
     try {
       const response = await chatStreamApi({
         message: trimmed,
-        user_id: String(userId),
         session_id: sessionId.value,
-      })
+      }, token)
       if (!response.ok) throw new Error(`AI 请求失败（HTTP ${response.status}）`)
       if (!response.body) throw new Error('浏览器无法读取流式响应')
 
