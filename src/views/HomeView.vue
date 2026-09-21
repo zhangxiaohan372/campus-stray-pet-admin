@@ -37,22 +37,13 @@
       </div>
     </div>
 
-    <!-- 图表区域 -->
-    <div class="tables-row">
-      <div class="table-card">
-        <div class="table-title">
-          <span>每月新增救助数量 vs 死亡数量</span>
-          <el-select v-model="selectedYear" size="small" style="width: 100px; margin-left: auto;" @change="onYearChange">
-            <el-option v-for="year in yearOptions" :key="year" :label="year" :value="year" />
-          </el-select>
-        </div>
-        <div ref="trendChartRef" class="table-placeholder"></div>
-      </div>
-      <div class="table-card">
-        <div class="table-title">健康状态分布</div>
-        <div ref="healthChartRef" class="table-placeholder"></div>
-      </div>
-    </div>
+    <!-- 图表区域（独立业务组件） -->
+    <HomeCharts
+      :cats="rawCats"
+      :dogs="rawDogs"
+      :health-data="healthStatusCounts"
+      :loading="loading"
+    />
 
     <!-- 底部卡片区域 -->
     <div class="bottom-cards">
@@ -73,54 +64,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ArrowRight } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
-import { getHomeChartDataApi } from '../api/home'
+import { getHomeChartDataApi, type HomeAnimalItem, type HomeHealthStatusCounts } from '../api/home'
 import { getPointsApi } from '../api/point'
 import { getMaterialsApi } from '../api/material'
 import { getUsersApi } from '../api/user'
 import HomeAnnouncementCard from './home/components/HomeAnnouncementCard.vue'
-// 按需引入 ECharts 核心模块和需要的组件
-import * as echarts from 'echarts/core'
-import { BarChart, LineChart, PieChart } from 'echarts/charts'
-import {
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent,
-  ToolboxComponent
-} from 'echarts/components'
-import { CanvasRenderer } from 'echarts/renderers'
-
-// 注册需要的组件
-echarts.use([
-  BarChart,
-  LineChart,
-  PieChart,
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent,
-  ToolboxComponent,
-  CanvasRenderer
-])
+import HomeCharts from './home/components/HomeCharts.vue'
 
 // ===================== 类型定义 =====================
-interface AnimalItem {
-  id: number
-  name: string
-  age: string
-  breed: string
-  healthStatus: string
-  health: string
-  foundTime: string
-  area: string
-  deadTime?: string | null
-  isDead?: boolean | number | null
-}
+type AnimalItem = HomeAnimalItem
 
 interface MaterialItem {
   id: number
@@ -143,9 +100,9 @@ const router = useRouter()
 const userStore = useUserStore()
 const loading = ref(false)
 
-// 原始数据（用于按年份过滤）
-let rawCats: AnimalItem[] = []
-let rawDogs: AnimalItem[] = []
+// 原始数据（传递给图表组件与统计卡片）
+const rawCats = ref<AnimalItem[]>([])
+const rawDogs = ref<AnimalItem[]>([])
 
 const materialData = ref<MaterialItem[]>([])
 const volunteerCount = ref(0)
@@ -153,175 +110,16 @@ const pointCount = ref(0)
 const catCount = ref(0)
 const dogCount = ref(0)
 
-// 图表数据
-const monthlyFound = ref<number[]>(new Array(12).fill(0))
-const monthlyDead = ref<number[]>(new Array(12).fill(0))
-const healthStatusCounts = ref({
+const healthStatusCounts = ref<HomeHealthStatusCounts>({
   normal: 0,
   attention: 0,
   emergency: 0,
   dead: 0
 })
 
-// 年份相关
-const selectedYear = ref<number>(new Date().getFullYear())
-const yearOptions = ref<number[]>([])
-
-// 图表实例
-let trendChart: echarts.ECharts | null = null
-let healthChart: echarts.ECharts | null = null
-const trendChartRef = ref<HTMLDivElement | null>(null)
-const healthChartRef = ref<HTMLDivElement | null>(null)
-
-const trendLabels = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
-
-
 // ===================== 辅助函数 =====================
 const isAlive = (healthStatus: string): boolean => {
   return !['dead', '已死亡'].includes(healthStatus)
-}
-
-/**
- * 根据年份统计每月新增和死亡
- */
-const computeMonthlyStatsByYear = (cats: AnimalItem[], dogs: AnimalItem[], year: number) => {
-  const found = new Array(12).fill(0)
-  const dead = new Array(12).fill(0)
-  const all = [...cats, ...dogs]
-  for (const animal of all) {
-    // 新增：foundTime 年份匹配
-    if (animal.foundTime) {
-      const d = new Date(animal.foundTime)
-      if (!isNaN(d.getTime()) && d.getFullYear() === year) {
-        const month = d.getMonth()
-        found[month]++
-      }
-    }
-    // 死亡：isDead 且 deadTime 年份匹配
-    const isDeadAnimal = animal.isDead === 1
-    if (isDeadAnimal && animal.deadTime) {
-      const d = new Date(animal.deadTime)
-      if (!isNaN(d.getTime()) && d.getFullYear() === year) {
-        const month = d.getMonth()
-        dead[month]++
-      }
-    }
-  }
-  return { found, dead }
-}
-
-// 提取所有数据中出现的年份
-const extractYears = (cats: AnimalItem[], dogs: AnimalItem[]): number[] => {
-  const years = new Set<number>()
-  const addYear = (dateStr?: string | null) => {
-    if (!dateStr) return
-    const d = new Date(dateStr)
-    if (!isNaN(d.getTime())) years.add(d.getFullYear())
-  }
-  cats.forEach(c => { addYear(c.foundTime); addYear(c.deadTime) })
-  dogs.forEach(d => { addYear(d.foundTime); addYear(d.deadTime) })
-  if (years.size === 0) years.add(new Date().getFullYear())
-  return Array.from(years).sort((a, b) => a - b)
-}
-
-// ===================== 图表初始化与更新 =====================
-const initTrendChart = () => {
-  if (!trendChartRef.value) return
-  if (trendChart) trendChart.dispose()
-  trendChart = echarts.init(trendChartRef.value)
-
-  trendChart.setOption({
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-    legend: { data: ['新增救助数', '死亡数'], top: 0, left: 'center' },
-    grid: { left: '3%', right: '4%', bottom: '10%' },
-    toolbox: { feature: { saveAsImage: {} } },
-    xAxis: { type: 'category', data: trendLabels },
-    yAxis: { type: 'value', name: '数量（只）' },
-    series: [
-      {
-        name: '新增救助数',
-        type: 'bar',
-        barWidth: '30%',
-        data: monthlyFound.value,
-        itemStyle: { color: '#67C23A', borderRadius: [6, 6, 0, 0] }
-      },
-      {
-        name: '死亡数',
-        type: 'bar',
-        barWidth: '30%',
-        data: monthlyDead.value,
-        itemStyle: { color: '#F56C6C', borderRadius: [6, 6, 0, 0] }
-      }
-    ]
-  })
-}
-
-const updateTrendChart = () => {
-  if (trendChart) {
-    trendChart.setOption({
-      series: [
-        { data: monthlyFound.value },
-        { data: monthlyDead.value }
-      ]
-    })
-  } else {
-    initTrendChart()
-  }
-}
-
-const initHealthChart = () => {
-  if (!healthChartRef.value) return
-  if (healthChart) healthChart.dispose()
-  healthChart = echarts.init(healthChartRef.value)
-
-  healthChart.setOption({
-    tooltip: { trigger: 'item' },
-    legend: { orient: 'vertical', left: 'left' },
-    toolbox: { feature: { saveAsImage: {} } },
-    series: [{
-      name: '健康状态',
-      type: 'pie',
-      radius: ['40%', '70%'],
-      roseType: 'area',
-      itemStyle: { borderRadius: 8 },
-      data: [
-        { value: healthStatusCounts.value.normal, name: '健康' },
-        { value: healthStatusCounts.value.attention, name: '需要关注' },
-        { value: healthStatusCounts.value.emergency, name: '紧急' },
-        { value: healthStatusCounts.value.dead, name: '已死亡' }
-      ],
-      label: { show: true, formatter: '{b}：{c}（{d}%）' }
-    }]
-  })
-}
-
-const updateHealthChart = () => {
-  if (healthChart) {
-    healthChart.setOption({
-      series: [{
-        data: [
-          { value: healthStatusCounts.value.normal, name: '健康' },
-          { value: healthStatusCounts.value.attention, name: '需要关注' },
-          { value: healthStatusCounts.value.emergency, name: '紧急' },
-          { value: healthStatusCounts.value.dead, name: '已死亡' }
-        ]
-      }]
-    })
-  } else {
-    initHealthChart()
-  }
-}
-
-// 按当前选中年份刷新柱状图
-const refreshTrendByYear = () => {
-  const { found, dead } = computeMonthlyStatsByYear(rawCats, rawDogs, selectedYear.value)
-  monthlyFound.value = found
-  monthlyDead.value = dead
-  updateTrendChart()
-}
-
-const onYearChange = () => {
-  refreshTrendByYear()
 }
 
 
@@ -335,29 +133,17 @@ const fetchAllData = async () => {
       throw new Error(chartRes.data.msg || '获取动物数据失败')
     }
     const { cats, dogs, healthStatusData, volunteerCount: chartVolunteerCount } = chartRes.data.data
-    rawCats = cats || []
-    rawDogs = dogs || []
+    rawCats.value = cats || []
+    rawDogs.value = dogs || []
     if (typeof chartVolunteerCount === 'number') {
       volunteerCount.value = chartVolunteerCount
     }
 
     // 2. 计算存活数量
-    catCount.value = rawCats.filter(a => isAlive(a.healthStatus)).length
-    dogCount.value = rawDogs.filter(a => isAlive(a.healthStatus)).length
+    catCount.value = rawCats.value.filter(a => isAlive(a.healthStatus)).length
+    dogCount.value = rawDogs.value.filter(a => isAlive(a.healthStatus)).length
 
-    // 3. 提取年份选项
-    const years = extractYears(rawCats, rawDogs)
-    yearOptions.value = years.length ? years : [new Date().getFullYear()]
-    if (!yearOptions.value.includes(selectedYear.value)) {
-      selectedYear.value = yearOptions.value[yearOptions.value.length - 1] ?? new Date().getFullYear()
-    }
-
-    // 4. 根据当前年份统计月度数据
-    const { found, dead } = computeMonthlyStatsByYear(rawCats, rawDogs, selectedYear.value)
-    monthlyFound.value = found
-    monthlyDead.value = dead
-
-    // 5. 健康状态分布
+    // 3. 健康状态分布
     if (healthStatusData) {
       healthStatusCounts.value = {
         normal: healthStatusData.normal || 0,
@@ -366,7 +152,7 @@ const fetchAllData = async () => {
         dead: healthStatusData.dead || 0
       }
     } else {
-      const all = [...rawCats, ...rawDogs]
+      const all = [...rawCats.value, ...rawDogs.value]
       const counts = { normal: 0, attention: 0, emergency: 0, dead: 0 }
       all.forEach(animal => {
         const s = animal.healthStatus
@@ -378,7 +164,7 @@ const fetchAllData = async () => {
       healthStatusCounts.value = counts
     }
 
-    // 6. 请求其他独立数据
+    // 4. 请求其他独立数据
     const [pointRes, materialRes] = await Promise.all([
       getPointsApi(),
       getMaterialsApi({ page: 1, pageSize: 1000 })
@@ -403,10 +189,6 @@ const fetchAllData = async () => {
       }
     }
 
-    // 等待 DOM 更新后渲染图表
-    await nextTick()
-    initTrendChart()
-    initHealthChart()
     ElMessage.success('数据加载成功')
   } catch (error) {
     console.error('数据请求错误：', error)
@@ -434,22 +216,9 @@ const urgentMaterials = computed(() => {
   return materialData.value.filter(item => item.status === '紧缺')
 })
 
-// ===================== 窗口自适应 =====================
-const resizeCharts = () => {
-  trendChart?.resize()
-  healthChart?.resize()
-}
-
 // ===================== 生命周期 =====================
 onMounted(() => {
   fetchAllData()
-  window.addEventListener('resize', resizeCharts)
-})
-
-onUnmounted(() => {
-  trendChart?.dispose()
-  healthChart?.dispose()
-  window.removeEventListener('resize', resizeCharts)
 })
 </script>
 
@@ -547,43 +316,7 @@ onUnmounted(() => {
   margin: 0;
   font-weight: 700;
 }
-.tables-row {
-  flex: 1;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-  width: 100%;
-  min-height: 300px;
-}
-.table-card {
-  background-color: #fff;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-.table-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 16px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #e9ecef;
-  flex-shrink: 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.table-placeholder {
-  flex: 1;
-  min-height: 200px;
-  width: 100%;
-  border-radius: 8px;
-  overflow: hidden;
-}
+
 .bottom-cards {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -653,18 +386,12 @@ onUnmounted(() => {
   .card-label { font-size: 12px; margin-bottom: 4px; white-space: normal; line-height: 1.4; }
   .card-value { font-size: 24px; }
   .card-arrow { font-size: 16px; }
-  .tables-row { grid-template-columns: 1fr; gap: 12px; min-height: auto; }
-  .table-card { padding: 16px; min-height: 280px; }
-  .table-title { font-size: 14px; margin-bottom: 12px; padding-bottom: 6px; flex-wrap: wrap; }
-  .table-title span { font-size: 13px; }
-  .table-placeholder { min-height: 220px; }
   .bottom-cards { grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .page-footer { padding: 16px; }
   .footer-title { font-size: 14px; margin-bottom: 8px; }
   .footer-title::before { width: 6px; height: 6px; }
   .urgent-item { font-size: 12px; line-height: 1.8; padding-left: 18px; }
   .urgent-item::before { width: 14px; height: 14px; font-size: 10px; top: 5px; }
-
 }
 
 /* 小屏幕适配 (480px - 768px) */
@@ -676,16 +403,10 @@ onUnmounted(() => {
   .card-label { font-size: 11px; }
   .card-value { font-size: 20px; }
   .card-arrow { font-size: 14px; }
-  .table-card { padding: 12px; min-height: 240px; }
-  .table-title { font-size: 13px; flex-wrap: wrap; }
-  .table-title span { font-size: 12px; max-width: 150px; }
-  .table-title .el-select { width: 80px !important; margin-left: 8px !important; }
-  .table-placeholder { min-height: 180px; }
   /* 底部卡片改为单列 */
   .bottom-cards { grid-template-columns: 1fr; gap: 8px; }
   .page-footer { padding: 12px; }
   .urgent-item { font-size: 11px; }
-
 }
 
 /* 超小屏幕适配 (< 375px) */
@@ -699,12 +420,6 @@ onUnmounted(() => {
   .card-label { font-size: 12px; margin-bottom: 2px; }
   .card-value { font-size: 22px; }
   .card-arrow { font-size: 16px; }
-  .tables-row { gap: 6px; }
-  .table-card { padding: 10px; min-height: 200px; }
-  .table-title { font-size: 12px; margin-bottom: 8px; }
-  .table-title span { font-size: 11px; max-width: 120px; }
-  .table-title .el-select { width: 70px !important; }
-  .table-placeholder { min-height: 160px; }
   .bottom-cards { gap: 6px; }
   .page-footer { padding: 10px; }
   .footer-title { font-size: 13px; margin-bottom: 6px; }
@@ -718,9 +433,6 @@ onUnmounted(() => {
   .data-card { padding: 10px 6px; }
   .card-label { font-size: 11px; }
   .card-value { font-size: 18px; }
-  .tables-row { grid-template-columns: repeat(2, 1fr); gap: 10px; min-height: 200px; }
-  .table-card { min-height: 200px; }
-  .table-placeholder { min-height: 150px; }
   .bottom-cards { grid-template-columns: repeat(2, 1fr); gap: 10px; }
 }
 </style>

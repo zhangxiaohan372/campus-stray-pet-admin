@@ -11,6 +11,19 @@ export interface HomeHealthStatusCounts {
   dead: number
 }
 
+export interface HomeAnimalItem {
+  id: number
+  name: string
+  age: string
+  breed: string
+  healthStatus: string
+  health: string
+  foundTime: string
+  area: string
+  deadTime?: string | null
+  isDead?: boolean | number | null
+}
+
 export interface HomeChartDataResult {
   catMonthlyData: number[]
   dogMonthlyData: number[]
@@ -18,6 +31,8 @@ export interface HomeChartDataResult {
   currentYear: number
   cats: any[]
   dogs: any[]
+  cats: HomeAnimalItem[]
+  dogs: HomeAnimalItem[]
   volunteerCount: number
 }
 

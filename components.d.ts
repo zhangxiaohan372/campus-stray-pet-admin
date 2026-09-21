@@ -11,6 +11,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    BaseChart: typeof import('./src/components/BaseChart.vue')['default']
     BaseLoading: typeof import('./src/components/BaseLoading.vue')['default']
     ChatHeader: typeof import('./src/components/ai-chat/ChatHeader.vue')['default']
     ChatInput: typeof import('./src/components/ai-chat/ChatInput.vue')['default']
