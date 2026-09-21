@@ -89,6 +89,7 @@
 import { ref, onMounted } from 'vue'
 import AMapLoader from '@amap/amap-jsapi-loader'
 import service from '../components/request.ts'
+import { getPointsApi, createPointApi } from '../api/point'
 
 // ==================== 1. 核心变量 ====================
 const KEY = 'cb1812a81faf359cc2c1e64b5d856817'
@@ -132,6 +133,7 @@ const renderMarkers = () => {
 const getPoints = async () => { 
   try { 
     const res = await service.get('/api/points')
+    const res = await getPointsApi()
     if (res.data.success) feedingPoints.value = res.data.data
     renderMarkers() // 获取数据后渲染标记
   } catch (error) {
@@ -203,6 +205,7 @@ const submitAddPoint = async () => {
     console.log('发送数据:', submitData)
     
     const response = await service.post('/api/points', submitData)
+    const response = await createPointApi(submitData)
     console.log('响应数据:', response.data)
     alert('新增救助点成功！')
     getPoints()

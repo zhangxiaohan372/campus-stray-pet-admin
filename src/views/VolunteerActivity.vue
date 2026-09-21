@@ -107,6 +107,13 @@ import { ElMessageBox, ElMessage, ElNotification } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import service from '../components/request.ts'
+import {
+  getActivityApi,
+  getActivityParticipantsApi,
+  createActivityApi,
+  updateActivityApi,
+  deleteActivityApi
+} from '../api/activity'
 import Pagination from '../components/Pagination.vue'
 import BaseLoading from '../components/BaseLoading.vue'
 
@@ -214,6 +221,8 @@ const fetchActivities = async () => {
   try {
     const res = await service.get('/api/activity', { params: { page: currentPage.value, pageSize: pageSize.value } })
     activities.value = res.data.data?.list || []
+    const res = await getActivityApi({ page: currentPage.value, pageSize: pageSize.value })
+    activities.value = (res.data.data?.list || []) as any
     totalActivities.value = res.data.data?.total || 0
   } catch (e) { ElMessage.error('获取活动失败') }
   finally { loading.value = false }
@@ -222,6 +231,8 @@ const fetchParticipants = async (id: number) => {
   try {
     const res = await service.get(`/api/activity/${id}/participants`)
     participants.value = res.data.data || []
+    const res = await getActivityParticipantsApi(id)
+    participants.value = (res.data.data || []) as any
   } catch (e) { ElMessage.error('获取参与者失败') }
 }
 const submitActivity = () => {
@@ -231,17 +242,21 @@ const submitActivity = () => {
     try {
       if (dialogMode.value === 'add') {
         await service.post('/api/activity', {
+        await createActivityApi({
           title: activityForm.value.title,
           content: activityForm.value.description,
           activityTime: activityForm.value.time,
           volunteerHours: activityForm.value.volunteerHours
+          volunteerHours: activityForm.value.volunteerHours || 1
         })
       } else {
         await service.put(`/api/activity/${editId.value}`, {
+        await updateActivityApi(editId.value!, {
           title: activityForm.value.title,
           content: activityForm.value.description,
           activityTime: activityForm.value.time,
           volunteerHours: activityForm.value.volunteerHours,
+          volunteerHours: activityForm.value.volunteerHours || 1,
           status: activityForm.value.status
         })
       }
@@ -257,6 +272,7 @@ const deleteActivity = async (id: number) => {
   try {
     await ElMessageBox.confirm('确定删除？','提示',{type:'warning'})
     await service.delete(`/api/activity/${id}`)
+    await deleteActivityApi(id)
     ElMessage.success('删除成功')
     fetchActivities()
   } catch (error) { if (error !== 'cancel') ElMessage.info('已取消') }

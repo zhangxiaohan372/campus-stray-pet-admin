@@ -127,6 +127,15 @@ import { ElMessageBox, ElMessage, ElNotification } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import service from '../components/request.ts'
+import {
+  getAnnouncementsApi,
+  createAnnouncementApi,
+  updateAnnouncementApi,
+  deleteAnnouncementApi,
+  getStudentForumApi,
+  deleteStudentForumApi,
+  getStudentForumCommentsApi
+} from '../api/announcement'
 import Pagination from '../components/Pagination.vue'
 import BaseLoading from '../components/BaseLoading.vue'
 import { useUserStore } from '../stores/user.ts'
@@ -222,6 +231,9 @@ const fetchMyAnnouncements = async () => {
           page: myCurrentPage.value,
           pageSize: myPageSize.value
         }
+      getAnnouncementsApi({
+        page: myCurrentPage.value,
+        pageSize: myPageSize.value
       }),
       minLoadingTime(300)
     ])
@@ -252,6 +264,9 @@ const fetchForumList = async () => {
           page: forumCurrentPage.value,
           pageSize: forumPageSize.value
         }
+      getStudentForumApi({
+        page: forumCurrentPage.value,
+        pageSize: forumPageSize.value
       }),
       minLoadingTime(300)
     ])
@@ -325,9 +340,11 @@ const submitAnnouncement = () => {
       try {
         if (dialogMode.value === 'add') { 
           await service.post('/api/announcements', announcementForm.value)
+          await createAnnouncementApi(announcementForm.value)
           ElMessage.success('公告发布成功！')
         } else if (dialogMode.value === 'edit' && editId.value) {
           await service.put(`/api/announcements/${editId.value}`, announcementForm.value)
+          await updateAnnouncementApi(editId.value, announcementForm.value)
           ElMessage.success('公告更新成功！')
         }
        } catch (e) { 
@@ -357,6 +374,7 @@ const deleteAnnouncement = async (id: number) => {
       center: true
     })
     await service.delete(`/api/announcements/${id}`)
+    await deleteAnnouncementApi(id)
     ElMessage.success('公告删除成功！')
     await fetchMyAnnouncements()
   } catch (error) {
@@ -377,6 +395,7 @@ const deleteStuForum = async (id: number) => {
       center: true
     })
     await service.delete(`/api/student/forum/${id}`)
+    await deleteStudentForumApi(id)
     ElMessage.success('删除成功')
     await fetchForumList()
   } catch (error) {
@@ -398,6 +417,7 @@ const fetchComments = async (postId: number) => {
     const res = await service.get(`/api/student/forum/${postId}/comments`, {
       headers: { Authorization: `Bearer ${userStore.userInfo?.token || ''}` }
     })
+    const res = await getStudentForumCommentsApi(postId)
     comments.value = Array.isArray(res.data.data) ? res.data.data : []
   } catch (e) {
     console.error('获取评论失败：', e)

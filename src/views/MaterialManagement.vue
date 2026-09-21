@@ -160,7 +160,7 @@ echarts.use([
   GridComponent,
   CanvasRenderer
 ])
-import service from '../components/request'
+import { getMaterialsApi, getMaterialsChartDataApi, updateMaterialApi, supplementMaterialApi } from '../api/material'
 import SearchFilterBar from '../components/SearchFilterBar.vue'
 import Pagination from '../components/Pagination.vue'
 import TableCard from '../components/TableCard.vue'
@@ -237,7 +237,7 @@ const fetchTableData = async () => {
     if (speciesFilter.value) params.species = speciesFilter.value
     if (searchKeyword.value) params.keyword = searchKeyword.value
 
-    const res = await service.get('/api/materials', { params })
+    const res = await getMaterialsApi(params)
     if (res.data.success) {
       tableData.value = res.data.data.list || []
       total.value = res.data.data.total || 0
@@ -254,7 +254,7 @@ const fetchTableData = async () => {
 // ========== 获取图表数据（独立接口） ==========
 const fetchChartData = async () => {
   try {
-    const res = await service.get('/api/materials/chart-data')
+    const res = await getMaterialsChartDataApi()
     if (res.data.success) {
       const { pieData, barData } = res.data.data
       renderCharts(pieData, barData)
@@ -344,7 +344,7 @@ const saveMaterial = async () => {
   submitLoading.value = true
   try {
     if (dialogType.value === 'edit') {
-      const res = await service.put(`/api/materials/${formData.value.id}`, formData.value)
+      const res = await updateMaterialApi(formData.value.id, formData.value)
       if (res.data.success) {
         ElMessage.success('编辑成功')
         dialogVisible.value = false
@@ -354,7 +354,7 @@ const saveMaterial = async () => {
         ElMessage.error(res.data.msg || '编辑失败')
       }
     } else {
-      const res = await service.put(`/api/materials/supplement/${formData.value.id}`, {
+      const res = await supplementMaterialApi(formData.value.id, {
         addCount: formData.value.addCount,
         unit: formData.value.unit
       })

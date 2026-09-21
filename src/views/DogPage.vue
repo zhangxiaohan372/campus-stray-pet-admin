@@ -188,6 +188,7 @@ import { ElMessageBox, ElMessage, ElNotification } from 'element-plus'
 import { Plus, Search, Refresh } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import service from '../components/request.ts'
+import { getDogsApi, createDogApi, updateDogApi, DOG_UPLOAD_URL } from '../api/dog'
 import Pagination from '../components/Pagination.vue'
 import StatusTag from '../components/StatusTag.vue'
 import TableCard from '../components/TableCard.vue'
@@ -234,6 +235,7 @@ const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 const uploadUrl = ref('http://47.93.227.166:3001/api/upload/image')
+const uploadUrl = ref(DOG_UPLOAD_URL)
 
 // 表格数据（后端分页返回的当前页数据）
 const tableData = ref<DogInfo[]>([])
@@ -276,11 +278,13 @@ const getDogList = async () => {
 
     const [response] = await Promise.all([
       service.get('/api/dogs', { params }),
+      getDogsApi(params),
       minLoadingTime(300)
     ])
 
     if (response.data.success) { 
       tableData.value = response.data.data.list || []
+      tableData.value = (response.data.data.list || []) as any
       total.value = response.data.data.total || 0
     } else { 
       ElMessage.error('获取小狗信息失败：' + (response.data.msg || '未知错误'))
@@ -410,6 +414,8 @@ const submitDogInfo = () => {
           dialogMode.value === 'add' 
             ? service.post('/api/dogs', submitData)
             : service.put(`/api/dogs/${editId.value}`, submitData),
+            ? createDogApi(submitData)
+            : updateDogApi(editId.value!, submitData),
           minLoadingTime(500)
         ])
 

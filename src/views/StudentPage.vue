@@ -301,6 +301,10 @@ import { Refresh, Key } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import SearchFilterBar from '../components/SearchFilterBar.vue'
 import service from '../components/request.ts'
+import { getUsersApi, createUserApi, updateUserApi, getVolunteerRankingApi } from '../api/user'
+import { getActivityRankingApi } from '../api/activity'
+import { getRolesApi, updateRolePermissionsApi } from '../api/role'
+import { getPermissionTreeApi } from '../api/auth'
 import Pagination from '../components/Pagination.vue'
 import TableCard from '../components/TableCard.vue'
 import { useUserStore } from '../stores/user'
@@ -412,12 +416,14 @@ const getTableData = async () => {
 
     const [res] = await Promise.all([
       service.get('/api/users', { params }),
+      getUsersApi(params),
       minLoadingTime(300)
     ])
 
     if (res.data.success) {
       const data = res.data.data
       tableData.value = (data.list || []).map((item: UserInfo) => ({
+      tableData.value = (data.list || []).map((item: any) => ({
         ...item,
         registerTime: item.registerTime || '暂无注册时间'
       }))
@@ -437,6 +443,7 @@ const getTableData = async () => {
 const fetchVolunteerRanking = async () => {
   try {
     const res = await service.get('/api/volunteer/ranking')
+    const res = await getVolunteerRankingApi()
     if (res.data.success) {
       volunteerRankData.value = res.data.data
     } else {
@@ -451,6 +458,7 @@ const fetchVolunteerRanking = async () => {
 const fetchActivityRanking = async () => {
   try {
     const res = await service.get('/api/activity/ranking')
+    const res = await getActivityRankingApi()
     if (res.data.success) {
       activityRankData.value = res.data.data
     } else {
@@ -548,6 +556,7 @@ const submitUserInfo = async () => {
 
     if (dialogMode.value === 'add') {
       const res = await service.post('/api/users', userForm.value)
+      const res = await createUserApi(userForm.value)
       if (res.data.success) {
         ElNotification.success('新增用户成功！')
         dialogVisible.value = false
@@ -561,6 +570,7 @@ const submitUserInfo = async () => {
       }
     } else if (dialogMode.value === 'edit') {
       const res = await service.put(`/api/users/${editStudentId.value}`, userForm.value)
+      const res = await updateUserApi(editStudentId.value, userForm.value)
       if (res.data.success) {
         ElNotification.success('编辑用户成功！')
         dialogVisible.value = false
@@ -652,10 +662,13 @@ const openRolePermissionDialog = async () => {
     const [rolesRes, treeRes] = await Promise.all([
       service.get('/api/roles'),
       service.get('/api/permissions/tree')
+      getRolesApi(),
+      getPermissionTreeApi()
     ])
 
     if (rolesRes.data.success) {
       roleList.value = rolesRes.data.data || []
+      roleList.value = (rolesRes.data.data || []) as any
       const mapping: Record<number, string[]> = {}
       roleList.value.forEach(r => {
         mapping[r.id] = [...(r.permissions || [])]
@@ -669,6 +682,7 @@ const openRolePermissionDialog = async () => {
 
     if (treeRes.data.success) {
       permissionTree.value = treeRes.data.data || []
+      permissionTree.value = (treeRes.data.data || []) as any
     }
   } catch (err: any) {
     ElMessage.error('加载角色与权限数据失败：' + (err.message || '网络异常'))
@@ -715,6 +729,7 @@ const saveRolePermissions = async () => {
     const res = await service.put(`/api/roles/${roleId}/permissions`, {
       permissions: perms
     })
+    const res = await updateRolePermissionsApi(roleId, perms)
     if (res.data.success) {
       ElMessage.success(`角色 [${role?.roleName}] 权限字符配置更新成功！`)
       if (role) {
@@ -725,6 +740,7 @@ const saveRolePermissions = async () => {
       }
     } else {
       ElMessage.error(res.data.message || '更新权限失败')
+      ElMessage.error(res.data.msg || (res.data as any).message || '更新权限失败')
     }
   } catch (err: any) {
     ElMessage.error('保存角色权限失败：' + (err.message || '网络异常'))

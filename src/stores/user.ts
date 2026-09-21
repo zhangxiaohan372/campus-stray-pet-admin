@@ -48,6 +48,8 @@ export const useUserStore = defineStore(
       try {
         const { default: request } = await import('../components/request')
         const res = await request.get('/api/me/permissions')
+        const { getMyPermissionsApi } = await import('../api/auth')
+        const res = await getMyPermissionsApi()
         if (res.data?.success && res.data.data?.permissions) {
           setPermissions(res.data.data.permissions)
         }
@@ -63,6 +65,6 @@ export const useUserStore = defineStore(
       key: 'user-store',
       storage: sessionStorage,
       paths: ['userInfo', 'isLogin']
-    } as PersistenceOptions   
+    } as PersistenceOptions
   }
 )

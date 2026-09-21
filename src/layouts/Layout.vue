@@ -106,6 +106,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Star, MapLocation, User, MessageBox, SwitchButton, Bell, UserFilled, Medal, House, Key } from '@element-plus/icons-vue'
 import { useUserStore } from '../stores/user'
 import request from '../components/request'
+import { logoutApi } from '../api/auth'
 
 const userStore = useUserStore()
 const router = useRouter()
@@ -143,6 +144,7 @@ const handleLogout = async (): Promise<void> => {
     
     // 1. 调用后端退出接口，清除HttpOnly Cookie
     await request.post('/api/logout')
+    await logoutApi()
     // 2. 清空Pinia状态
     userStore.logout()
     // 3. 提示+跳转

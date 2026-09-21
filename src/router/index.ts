@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { ElMessage } from 'element-plus'
 import request from '../components/request'
+import { getMyPermissionsApi } from '../api/auth'
 import { getFallbackPermissions } from '../config/permissions'
 
 // 路由组件 - 使用懒加载
@@ -108,6 +109,7 @@ router.beforeEach(async (to, from, next) => {
       if (!userStore.userInfo?.permissions?.length) {
         try {
           const res = await request.get('/api/me/permissions')
+          const res = await getMyPermissionsApi()
           if (res.data.success) {
             userStore.setPermissions(res.data.data.permissions || [])
           }

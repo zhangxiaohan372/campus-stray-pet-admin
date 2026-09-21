@@ -155,7 +155,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type ElTable } from 'element-plus'
 import { Refresh, Check, House, Folder } from '@element-plus/icons-vue'
-import service from '../components/request'
+import { getRolesApi, updateRolePermissionsApi } from '../api/role'
+import { getPermissionTreeApi } from '../api/auth'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
@@ -275,12 +276,12 @@ const fetchData = async () => {
   loading.value = true
   try {
     const [rolesRes, treeRes] = await Promise.all([
-      service.get('/api/roles'),
-      service.get('/api/permissions/tree')
+      getRolesApi(),
+      getPermissionTreeApi()
     ])
 
     if (rolesRes.data?.success) {
-      const allRoles: RoleItem[] = rolesRes.data.data || []
+      const allRoles: RoleItem[] = (rolesRes.data.data || []) as any
       // 仅保留 admin 和 president 两个角色
       roleList.value = allRoles.filter(r => ['admin', 'president'].includes(r.roleCode))
 
@@ -290,11 +291,11 @@ const fetchData = async () => {
       selectedPermissions.value.president = president?.permissions ? [...president.permissions] : []
       selectedPermissions.value.admin = admin?.permissions ? [...admin.permissions] : []
     } else {
-      ElMessage.error(rolesRes.data?.message || '获取角色列表失败')
+      ElMessage.error(rolesRes.data?.msg || rolesRes.data?.message || '获取角色列表失败')
     }
 
     if (treeRes.data?.success) {
-      const rawTree: PermModule[] = treeRes.data.data || []
+      const rawTree: PermModule[] = (treeRes.data.data || []) as any
       // 构建二级表格数据（一级为模块，二级为权限项）
       tableData.value = rawTree.map(mod => ({
         id: `mod_${mod.value}`,
@@ -311,7 +312,7 @@ const fetchData = async () => {
         }))
       }))
     } else {
-      ElMessage.error(treeRes.data?.message || '获取权限树失败')
+      ElMessage.error(treeRes.data?.msg || treeRes.data?.message || '获取权限树失败')
     }
   } catch (err: any) {
     console.error('加载权限数据出错:', err)
@@ -335,14 +336,10 @@ const savePermissions = async () => {
   try {
     const promises = []
     if (presidentRole) {
-      promises.push(service.put(`/api/roles/${presidentRole.id}/permissions`, {
-        permissions: selectedPermissions.value.president
-      }))
+      promises.push(updateRolePermissionsApi(presidentRole.id, selectedPermissions.value.president))
     }
     if (adminRole) {
-      promises.push(service.put(`/api/roles/${adminRole.id}/permissions`, {
-        permissions: selectedPermissions.value.admin
-      }))
+      promises.push(updateRolePermissionsApi(adminRole.id, selectedPermissions.value.admin))
     }
 
     await Promise.all(promises)

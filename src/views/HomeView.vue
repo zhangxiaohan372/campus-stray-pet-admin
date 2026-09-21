@@ -98,7 +98,11 @@ import { ElMessage } from 'element-plus'
 import { ArrowRight, Bell } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
-import service from '../components/request.ts'
+import { getHomeChartDataApi } from '../api/home'
+import { getAnnouncementsApi } from '../api/announcement'
+import { getPointsApi } from '../api/point'
+import { getMaterialsApi } from '../api/material'
+import { getUsersApi } from '../api/user'
 // 按需引入 ECharts 核心模块和需要的组件
 import * as echarts from 'echarts/core'
 import { BarChart, LineChart, PieChart } from 'echarts/charts'
@@ -368,19 +372,17 @@ const loadAnnouncements = async (isLoadMore = false) => {
 
   announcementsLoading.value = true
   try {
-    const res = await service.get('/api/announcements', {
-      params: {
-        page: announcementsPage.value,
-        pageSize: announcementsPageSize.value
-      }
+    const res = await getAnnouncementsApi({
+      page: announcementsPage.value,
+      pageSize: announcementsPageSize.value
     })
     if (res.data.success) {
       const list = res.data.data?.list || []
       const total = res.data.data?.total || 0
       if (isLoadMore) {
-        announcementsList.value.push(...list)
+        announcementsList.value.push(...(list as any))
       } else {
-        announcementsList.value = list
+        announcementsList.value = list as any
       }
       announcementsTotal.value = total
       // 判断是否还有更多
@@ -419,7 +421,7 @@ const fetchAllData = async () => {
   loading.value = true
   try {
     // 1. 获取动物数据（使用主页专用接口，含 cats/dogs 原始数据）
-    const chartRes = await service.get('/api/home/chart-data')
+    const chartRes = await getHomeChartDataApi()
     if (!chartRes.data.success) {
       throw new Error(chartRes.data.msg || '获取动物数据失败')
     }
@@ -469,21 +471,21 @@ const fetchAllData = async () => {
 
     // 6. 请求其他独立数据
     const [pointRes, materialRes] = await Promise.all([
-      service.get('/api/points'),
-      service.get('/api/materials', { params: { page: 1, pageSize: 1000 } })
+      getPointsApi(),
+      getMaterialsApi({ page: 1, pageSize: 1000 })
     ])
 
     if (pointRes.data.success) {
       pointCount.value = pointRes.data.data?.length || 0
     }
     if (materialRes.data.success) {
-      materialData.value = materialRes.data.data?.list || []
+      materialData.value = (materialRes.data.data?.list || []) as any
     }
 
     // 若主页接口未提供志愿者数量且具备 user:read 权限，则补充查询
     if (volunteerCount.value === 0 && userStore.hasPermission('user:read')) {
       try {
-        const volunteerRes = await service.get('/api/users', { params: { page: 1, pageSize: 1000, role: 'volunteer' } })
+        const volunteerRes = await getUsersApi({ page: 1, pageSize: 1000, role: 'volunteer' })
         if (volunteerRes.data?.success) {
           volunteerCount.value = volunteerRes.data.data?.list?.length || 0
         }

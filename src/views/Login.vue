@@ -50,6 +50,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElForm, ElFormItem, ElInput, ElButton } from 'element-plus'
 import { useUserStore } from '../stores/user'
 import request from '../components/request'
+import { loginApi } from '../api/auth'
 import { Lock,User } from '@element-plus/icons-vue'
 const router = useRouter()
 const route = useRoute()
@@ -79,6 +80,7 @@ const handleLogin = async () => {
   // 2. 调用登录接口
   try {
     const res = await request.post('/api/login', {
+    const res = await loginApi({
       name: loginForm.value.name,
       password: loginForm.value.password
     })

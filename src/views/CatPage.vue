@@ -181,6 +181,7 @@ import { ElMessageBox, ElMessage, ElNotification } from 'element-plus'
 import { Plus, Search,Refresh } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import service from '../components/request.ts'
+import { getCatsApi, createCatApi, updateCatApi, CAT_UPLOAD_URL } from '../api/cat'
 import Pagination from '../components/Pagination.vue'
 import StatusTag from '../components/StatusTag.vue'
 import TableCard from '../components/TableCard.vue'
@@ -228,6 +229,7 @@ const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 const uploadUrl = ref('/api/upload/image')
+const uploadUrl = ref(CAT_UPLOAD_URL)
 
 // 表格数据（后端分页返回的当前页数据）
 const tableData = ref<CatInfo[]>([])
@@ -240,6 +242,12 @@ const columnsData = ref([
   { prop: 'breed', label: '品种', width: '150' },
   { prop: 'health', label: '健康状况', minWidth: '200' }, 
   { prop: 'area', label: '经常活动区域', width: '180' }
+  { prop: 'area', label: '经常活动区域', width: '180' },
+  { prop: 'healthStatus', label: '健康状态', width: '120' },
+  { prop: 'health', label: '健康描述', minWidth: '200' },
+  { prop: 'area', label: '区域', width: '120' },
+  { prop: 'foundTime', label: '发现时间', width: '180' },
+  { prop: 'isDead', label: '存活状态', width: '120' }
 ])
 
 // 核心变量
@@ -247,6 +255,8 @@ const dialogMode = ref<'add' | 'edit'>('add')
 const editId = ref<number | null>(null)
 const dialogVisible = ref(false)
 const formRef = ref<FormInstance>()
+const isEditMode = computed(() => dialogMode.value === 'edit')
+const dialogTitle = computed(() => dialogMode.value === 'add' ? '新增小猫信息' : '编辑小猫信息')
 
 // 弹窗标题
 const dialogTitle = computed(() => {
@@ -270,11 +280,13 @@ const getCatList = async () => {
 
     const [response] = await Promise.all([
       service.get('/api/cats', { params }),
+      getCatsApi(params),
       minLoadingTime(300)
     ])
 
     if (response.data.success) { 
       tableData.value = response.data.data.list || []
+      tableData.value = (response.data.data.list || []) as any
       total.value = response.data.data.total || 0
     } else { 
       ElMessage.error('获取小猫信息失败：' + (response.data.msg || '未知错误'))
@@ -404,6 +416,8 @@ const submitCatInfo = () => {
           dialogMode.value === 'add' 
             ? service.post('/api/cats', submitData)
             : service.put(`/api/cats/${editId.value}`, submitData),
+            ? createCatApi(submitData)
+            : updateCatApi(editId.value!, submitData),
           minLoadingTime(500)
         ])
 
