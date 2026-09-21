@@ -29,8 +29,6 @@ export interface HomeChartDataResult {
   dogMonthlyData: number[]
   healthStatusData: HomeHealthStatusCounts
   currentYear: number
-  cats: any[]
-  dogs: any[]
   cats: HomeAnimalItem[]
   dogs: HomeAnimalItem[]
   volunteerCount: number
