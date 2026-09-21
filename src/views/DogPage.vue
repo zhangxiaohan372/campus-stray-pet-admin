@@ -234,7 +234,6 @@ const healthFilter = ref('all')
 const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
-const uploadUrl = ref('http://47.93.227.166:3001/api/upload/image')
 const uploadUrl = ref(DOG_UPLOAD_URL)
 
 // 表格数据（后端分页返回的当前页数据）
@@ -414,6 +413,7 @@ const submitDogInfo = () => {
           dialogMode.value === 'add' 
             ? service.post('/api/dogs', submitData)
             : service.put(`/api/dogs/${editId.value}`, submitData),
+          dialogMode.value === 'add'
             ? createDogApi(submitData)
             : updateDogApi(editId.value!, submitData),
           minLoadingTime(500)

@@ -108,7 +108,6 @@ router.beforeEach(async (to, from, next) => {
     if (userStore.isLogin) {
       if (!userStore.userInfo?.permissions?.length) {
         try {
-          const res = await request.get('/api/me/permissions')
           const res = await getMyPermissionsApi()
           if (res.data.success) {
             userStore.setPermissions(res.data.data.permissions || [])

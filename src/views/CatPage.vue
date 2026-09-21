@@ -228,7 +228,6 @@ const healthFilter = ref('all')
 const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
-const uploadUrl = ref('/api/upload/image')
 const uploadUrl = ref(CAT_UPLOAD_URL)
 
 // 表格数据（后端分页返回的当前页数据）
@@ -241,7 +240,6 @@ const columnsData = ref([
   { prop: 'age', label: '年龄', width: '120' },
   { prop: 'breed', label: '品种', width: '150' },
   { prop: 'health', label: '健康状况', minWidth: '200' }, 
-  { prop: 'area', label: '经常活动区域', width: '180' }
   { prop: 'area', label: '经常活动区域', width: '180' },
   { prop: 'healthStatus', label: '健康状态', width: '120' },
   { prop: 'health', label: '健康描述', minWidth: '200' },
@@ -256,7 +254,6 @@ const editId = ref<number | null>(null)
 const dialogVisible = ref(false)
 const formRef = ref<FormInstance>()
 const isEditMode = computed(() => dialogMode.value === 'edit')
-const dialogTitle = computed(() => dialogMode.value === 'add' ? '新增小猫信息' : '编辑小猫信息')
 
 // 弹窗标题
 const dialogTitle = computed(() => {
@@ -416,6 +413,7 @@ const submitCatInfo = () => {
           dialogMode.value === 'add' 
             ? service.post('/api/cats', submitData)
             : service.put(`/api/cats/${editId.value}`, submitData),
+          dialogMode.value === 'add'
             ? createCatApi(submitData)
             : updateCatApi(editId.value!, submitData),
           minLoadingTime(500)

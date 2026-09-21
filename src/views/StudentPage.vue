@@ -422,7 +422,6 @@ const getTableData = async () => {
 
     if (res.data.success) {
       const data = res.data.data
-      tableData.value = (data.list || []).map((item: UserInfo) => ({
       tableData.value = (data.list || []).map((item: any) => ({
         ...item,
         registerTime: item.registerTime || '暂无注册时间'
@@ -442,7 +441,6 @@ const getTableData = async () => {
 // 获取志愿时长排行榜（后端已排序）
 const fetchVolunteerRanking = async () => {
   try {
-    const res = await service.get('/api/volunteer/ranking')
     const res = await getVolunteerRankingApi()
     if (res.data.success) {
       volunteerRankData.value = res.data.data
@@ -457,7 +455,6 @@ const fetchVolunteerRanking = async () => {
 // 获取活跃度排行榜（后端已排序）
 const fetchActivityRanking = async () => {
   try {
-    const res = await service.get('/api/activity/ranking')
     const res = await getActivityRankingApi()
     if (res.data.success) {
       activityRankData.value = res.data.data
@@ -555,7 +552,6 @@ const submitUserInfo = async () => {
     await formRef.value.validate()
 
     if (dialogMode.value === 'add') {
-      const res = await service.post('/api/users', userForm.value)
       const res = await createUserApi(userForm.value)
       if (res.data.success) {
         ElNotification.success('新增用户成功！')
@@ -569,7 +565,6 @@ const submitUserInfo = async () => {
         ElMessage.error(res.data.msg || '新增用户失败')
       }
     } else if (dialogMode.value === 'edit') {
-      const res = await service.put(`/api/users/${editStudentId.value}`, userForm.value)
       const res = await updateUserApi(editStudentId.value, userForm.value)
       if (res.data.success) {
         ElNotification.success('编辑用户成功！')
@@ -660,15 +655,17 @@ const openRolePermissionDialog = async () => {
   roleLoading.value = true
   try {
     const [rolesRes, treeRes] = await Promise.all([
-      service.get('/api/roles'),
-      service.get('/api/permissions/tree')
       getRolesApi(),
       getPermissionTreeApi()
     ])
 
     if (rolesRes.data.success) {
-      roleList.value = rolesRes.data.data || []
-      roleList.value = (rolesRes.data.data || []) as any
+      roleList.value = (rolesRes.data.data || []).map(role => ({
+        ...role,
+        description: role.description || '',
+        createTime: role.createTime || '',
+        permissions: role.permissions || []
+      }))
       const mapping: Record<number, string[]> = {}
       roleList.value.forEach(r => {
         mapping[r.id] = [...(r.permissions || [])]
@@ -681,8 +678,16 @@ const openRolePermissionDialog = async () => {
     }
 
     if (treeRes.data.success) {
-      permissionTree.value = treeRes.data.data || []
-      permissionTree.value = (treeRes.data.data || []) as any
+      permissionTree.value = (treeRes.data.data || []).map(module => ({
+        label: module.label,
+        value: module.value,
+        children: (module.children || []).map(item => ({
+          id: Number(item.id ?? 0),
+          label: item.label,
+          value: item.value,
+          description: item.description
+        }))
+      }))
     }
   } catch (err: any) {
     ElMessage.error('加载角色与权限数据失败：' + (err.message || '网络异常'))
@@ -726,9 +731,6 @@ const saveRolePermissions = async () => {
 
   saveRoleLoading.value = true
   try {
-    const res = await service.put(`/api/roles/${roleId}/permissions`, {
-      permissions: perms
-    })
     const res = await updateRolePermissionsApi(roleId, perms)
     if (res.data.success) {
       ElMessage.success(`角色 [${role?.roleName}] 权限字符配置更新成功！`)

@@ -79,7 +79,6 @@ const handleLogin = async () => {
 
   // 2. 调用登录接口
   try {
-    const res = await request.post('/api/login', {
     const res = await loginApi({
       name: loginForm.value.name,
       password: loginForm.value.password

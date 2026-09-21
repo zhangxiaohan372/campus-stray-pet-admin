@@ -46,8 +46,6 @@ export const useUserStore = defineStore(
 
     const refreshPermissions = async () => {
       try {
-        const { default: request } = await import('../components/request')
-        const res = await request.get('/api/me/permissions')
         const { getMyPermissionsApi } = await import('../api/auth')
         const res = await getMyPermissionsApi()
         if (res.data?.success && res.data.data?.permissions) {

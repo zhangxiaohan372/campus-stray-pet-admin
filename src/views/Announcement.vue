@@ -231,6 +231,7 @@ const fetchMyAnnouncements = async () => {
           page: myCurrentPage.value,
           pageSize: myPageSize.value
         }
+      }),
       getAnnouncementsApi({
         page: myCurrentPage.value,
         pageSize: myPageSize.value
@@ -264,6 +265,7 @@ const fetchForumList = async () => {
           page: forumCurrentPage.value,
           pageSize: forumPageSize.value
         }
+      }),
       getStudentForumApi({
         page: forumCurrentPage.value,
         pageSize: forumPageSize.value
@@ -414,9 +416,6 @@ const viewForumPost = (post: ForumPost) => {
 
 const fetchComments = async (postId: number) => {
   try {
-    const res = await service.get(`/api/student/forum/${postId}/comments`, {
-      headers: { Authorization: `Bearer ${userStore.userInfo?.token || ''}` }
-    })
     const res = await getStudentForumCommentsApi(postId)
     comments.value = Array.isArray(res.data.data) ? res.data.data : []
   } catch (e) {

@@ -219,8 +219,6 @@ const handleParticipantsClose = () => { participantsVisible.value = false; parti
 const fetchActivities = async () => {
   loading.value = true
   try {
-    const res = await service.get('/api/activity', { params: { page: currentPage.value, pageSize: pageSize.value } })
-    activities.value = res.data.data?.list || []
     const res = await getActivityApi({ page: currentPage.value, pageSize: pageSize.value })
     activities.value = (res.data.data?.list || []) as any
     totalActivities.value = res.data.data?.total || 0
@@ -229,8 +227,6 @@ const fetchActivities = async () => {
 }
 const fetchParticipants = async (id: number) => {
   try {
-    const res = await service.get(`/api/activity/${id}/participants`)
-    participants.value = res.data.data || []
     const res = await getActivityParticipantsApi(id)
     participants.value = (res.data.data || []) as any
   } catch (e) { ElMessage.error('获取参与者失败') }
@@ -241,21 +237,17 @@ const submitActivity = () => {
     loading.value = true
     try {
       if (dialogMode.value === 'add') {
-        await service.post('/api/activity', {
         await createActivityApi({
           title: activityForm.value.title,
           content: activityForm.value.description,
           activityTime: activityForm.value.time,
-          volunteerHours: activityForm.value.volunteerHours
           volunteerHours: activityForm.value.volunteerHours || 1
         })
       } else {
-        await service.put(`/api/activity/${editId.value}`, {
         await updateActivityApi(editId.value!, {
           title: activityForm.value.title,
           content: activityForm.value.description,
           activityTime: activityForm.value.time,
-          volunteerHours: activityForm.value.volunteerHours,
           volunteerHours: activityForm.value.volunteerHours || 1,
           status: activityForm.value.status
         })

@@ -132,7 +132,6 @@ const renderMarkers = () => {
 // 获取救助点数据
 const getPoints = async () => { 
   try { 
-    const res = await service.get('/api/points')
     const res = await getPointsApi()
     if (res.data.success) feedingPoints.value = res.data.data
     renderMarkers() // 获取数据后渲染标记
@@ -204,7 +203,6 @@ const submitAddPoint = async () => {
     }
     console.log('发送数据:', submitData)
     
-    const response = await service.post('/api/points', submitData)
     const response = await createPointApi(submitData)
     console.log('响应数据:', response.data)
     alert('新增救助点成功！')
