@@ -66,28 +66,8 @@
         </ul>
       </div>
 
-      <!-- 公告栏（懒加载） -->
-      <div class="announcement-card" @click="toPage('/announcement')">
-        <div class="announcement-title">
-          <el-icon class="announcement-icon"><Bell /></el-icon>
-          <span>公告栏</span>
-        </div>
-        <div
-          ref="announcementScrollRef"
-          class="announcement-list"
-          @scroll="handleAnnouncementScroll"
-        >
-          <div v-for="announcement in announcementsList" :key="announcement.id" class="announcement-item">
-            <div class="announcement-content">
-              <div class="announcement-title-text">{{ announcement.title }}</div>
-              <div class="announcement-description">{{ announcement.description }}</div>
-            </div>
-            <div class="announcement-time">{{ announcement.time }}</div>
-          </div>
-          <div v-if="announcementsLoading" class="loading-tip">加载中...</div>
-          <div v-else-if="!announcementsHasMore" class="no-more-tip">没有更多了</div>
-        </div>
-      </div>
+      <!-- 公告栏（独立组件） -->
+      <HomeAnnouncementCard />
     </div>
   </div>
 </template>
@@ -95,14 +75,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import { ArrowRight, Bell } from '@element-plus/icons-vue'
+import { ArrowRight } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { getHomeChartDataApi } from '../api/home'
-import { getAnnouncementsApi } from '../api/announcement'
 import { getPointsApi } from '../api/point'
 import { getMaterialsApi } from '../api/material'
 import { getUsersApi } from '../api/user'
+import HomeAnnouncementCard from './home/components/HomeAnnouncementCard.vue'
 // 按需引入 ECharts 核心模块和需要的组件
 import * as echarts from 'echarts/core'
 import { BarChart, LineChart, PieChart } from 'echarts/charts'
@@ -157,13 +137,6 @@ interface MaterialItem {
   updateTime: string
 }
 
-interface AnnouncementItem {
-  id: number
-  title: string
-  description: string
-  time: string
-  author: string
-}
 
 // ===================== 响应式数据 =====================
 const router = useRouter()
@@ -202,14 +175,6 @@ const healthChartRef = ref<HTMLDivElement | null>(null)
 
 const trendLabels = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月']
 
-// 公告栏相关
-const announcementsList = ref<AnnouncementItem[]>([])
-const announcementsPage = ref(1)
-const announcementsPageSize = ref(5)  // 每次加载5条
-const announcementsTotal = ref(0)
-const announcementsLoading = ref(false)
-const announcementsHasMore = ref(true)
-const announcementScrollRef = ref<HTMLDivElement | null>(null)
 
 // ===================== 辅助函数 =====================
 const isAlive = (healthStatus: string): boolean => {
@@ -359,62 +324,6 @@ const onYearChange = () => {
   refreshTrendByYear()
 }
 
-// 加载公告列表（分页）
-const loadAnnouncements = async (isLoadMore = false) => {
-  if (announcementsLoading.value) return
-  if (!isLoadMore) {
-    // 重置分页
-    announcementsPage.value = 1
-    announcementsList.value = []
-    announcementsHasMore.value = true
-  }
-  if (!announcementsHasMore.value && isLoadMore) return
-
-  announcementsLoading.value = true
-  try {
-    const res = await getAnnouncementsApi({
-      page: announcementsPage.value,
-      pageSize: announcementsPageSize.value
-    })
-    if (res.data.success) {
-      const list = res.data.data?.list || []
-      const total = res.data.data?.total || 0
-      if (isLoadMore) {
-        announcementsList.value.push(...(list as any))
-      } else {
-        announcementsList.value = list as any
-      }
-      announcementsTotal.value = total
-      // 判断是否还有更多
-      announcementsHasMore.value = announcementsList.value.length < total
-      if (announcementsHasMore.value) {
-        announcementsPage.value++
-      }
-    } else {
-      ElMessage.error(res.data.msg || '加载公告失败')
-    }
-  } catch (err) {
-    console.error('加载公告失败', err)
-    ElMessage.error('加载公告失败')
-  } finally {
-    announcementsLoading.value = false
-  }
-}
-
-  // 滚动加载更多
-let ticking = false
-const handleAnnouncementScroll = (e: Event) => {
-  if (ticking) return
-  ticking = true
-  requestAnimationFrame(() => { 
-    const target = e.target as HTMLDivElement
-    const { scrollTop, scrollHeight, clientHeight } = target
-    if (scrollTop + clientHeight >= scrollHeight - 10) {
-      loadAnnouncements(true)  // 加载下一页
-    }
-    ticking = false
-  })
-}
 
 // ===================== 数据请求 =====================
 const fetchAllData = async () => {
@@ -534,7 +443,6 @@ const resizeCharts = () => {
 // ===================== 生命周期 =====================
 onMounted(() => {
   fetchAllData()
-  loadAnnouncements()  // 加载公告第一页
   window.addEventListener('resize', resizeCharts)
 })
 
@@ -735,83 +643,6 @@ onUnmounted(() => {
   left: 0;
   top: 6px;
 }
-.announcement-card {
-  background-color: #fff;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-.announcement-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
-}
-.announcement-title {
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #e9ecef;
-}
-.announcement-icon {
-  font-size: 18px;
-  color: #409eff;
-  margin-right: 5px;
-}
-.announcement-list {
-  max-height: 280px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.announcement-item {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  border-left: 4px solid #409eff;
-  transition: all 0.3s ease;
-}
-.announcement-item:hover {
-  background-color: #e3f2fd;
-  transform: translateY(-2px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-.announcement-title-text {
-  font-size: 14px;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.announcement-description {
-  font-size: 12px;
-  color: #666;
-  line-height: 1.4;
-}
-.announcement-time {
-  font-size: 11px;
-  color: #999;
-  text-align: right;
-  margin-top: 4px;
-}
-.loading-tip, .no-more-tip {
-  text-align: center;
-  font-size: 12px;
-  color: #999;
-  padding: 8px;
-}
 
 @media screen and (max-width: 768px) {
   .home-page { padding: 12px; gap: 12px; }
@@ -833,14 +664,7 @@ onUnmounted(() => {
   .footer-title::before { width: 6px; height: 6px; }
   .urgent-item { font-size: 12px; line-height: 1.8; padding-left: 18px; }
   .urgent-item::before { width: 14px; height: 14px; font-size: 10px; top: 5px; }
-  .announcement-card { padding: 16px; }
-  .announcement-title { font-size: 14px; margin-bottom: 12px; padding-bottom: 8px; }
-  .announcement-icon { font-size: 16px; }
-  .announcement-list { gap: 10px; max-height: 240px; }
-  .announcement-item { padding: 10px; }
-  .announcement-title-text { font-size: 13px; }
-  .announcement-description { font-size: 11px; }
-  .announcement-time { font-size: 10px; }
+
 }
 
 /* 小屏幕适配 (480px - 768px) */
@@ -861,14 +685,7 @@ onUnmounted(() => {
   .bottom-cards { grid-template-columns: 1fr; gap: 8px; }
   .page-footer { padding: 12px; }
   .urgent-item { font-size: 11px; }
-  .announcement-card { padding: 12px; }
-  .announcement-title { font-size: 13px; }
-  .announcement-icon { font-size: 14px; }
-  .announcement-list { gap: 8px; max-height: 200px; }
-  .announcement-item { padding: 8px; }
-  .announcement-title-text { font-size: 12px; }
-  .announcement-description { font-size: 10px; }
-  .announcement-time { font-size: 9px; }
+
 }
 
 /* 超小屏幕适配 (< 375px) */
@@ -892,14 +709,6 @@ onUnmounted(() => {
   .page-footer { padding: 10px; }
   .footer-title { font-size: 13px; margin-bottom: 6px; }
   .urgent-item { font-size: 11px; line-height: 1.6; padding-left: 16px; }
-  .announcement-card { padding: 10px; }
-  .announcement-title { font-size: 12px; margin-bottom: 8px; padding-bottom: 6px; }
-  .announcement-icon { font-size: 12px; margin-right: 3px; }
-  .announcement-list { gap: 6px; max-height: 180px; }
-  .announcement-item { padding: 6px; border-left-width: 3px; }
-  .announcement-title-text { font-size: 11px; }
-  .announcement-description { font-size: 10px; line-height: 1.3; }
-  .announcement-time { font-size: 9px; }
 }
 
 /* 横屏模式优化 */
@@ -913,6 +722,5 @@ onUnmounted(() => {
   .table-card { min-height: 200px; }
   .table-placeholder { min-height: 150px; }
   .bottom-cards { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-  .announcement-list { max-height: 150px; }
 }
 </style>
