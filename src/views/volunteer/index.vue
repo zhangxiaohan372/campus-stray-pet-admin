@@ -262,7 +262,6 @@ const submitActivity = () => {
 const deleteActivity = async (id: number) => {
   try {
     await ElMessageBox.confirm('确定删除？','提示',{type:'warning'})
-    await service.delete(`/api/activity/${id}`)
     await deleteActivityApi(id)
     ElMessage.success('删除成功')
     fetchActivities()
