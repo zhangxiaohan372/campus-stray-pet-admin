@@ -152,9 +152,9 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, type ElTable } from 'element-plus'
 import { Refresh, Check, House, Folder } from '@element-plus/icons-vue'
-import { getRolesApi, updateRolePermissionsApi } from '../api/role'
-import { getPermissionTreeApi } from '../api/auth'
-import { useUserStore } from '../stores/user'
+import { getRolesApi, updateRolePermissionsApi } from '../../api/role'
+import { getPermissionTreeApi } from '../../api/auth'
+import { useUserStore } from '../../stores/user'
 
 const router = useRouter()
 const userStore = useUserStore()

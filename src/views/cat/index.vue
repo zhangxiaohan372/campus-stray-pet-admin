@@ -2,46 +2,38 @@
   <div class="main" style="position: relative; min-height: 600px;">
     <div class="header">
       <div class="text">
-        <h2 class="title">小狗信息管理</h2>
+        <h2 class="title">小猫信息管理</h2>
       </div>
       <div class="header-actions">
         <SearchFilterBar
           v-model="searchKeyword"
-          placeholder="搜索小狗信息"
+          placeholder="搜索小猫信息"
           clearable
           :prefix-icon="Search"
           @search="handleSearch"
+          @reset="handleReset"
           :debounce-time="1000"
-          style="width: 280px;"
-        />
-        
-        <el-button 
-          size="default" 
-          style="margin-left: 8px;"
-          @click="handleReset"
         >
-          <el-icon><Refresh /></el-icon>
-          重置筛选
-        </el-button>
-        
-        <el-button type="primary" size="default" style="margin-left: 16px;" @click="openDialog('add')">
-          <el-icon><Plus /></el-icon>
-          添加小狗信息
-        </el-button>
-        
-        <el-select 
-          v-model="healthFilter"
-          placeholder="筛选健康状态" 
-          size="default" 
-          style="margin-left: 16px; width: 180px;"
-          @change="handleFilter"
-        >
-          <el-option label="全部" value="all" />
-          <el-option label="健康" value="normal" />
-          <el-option label="需要关注" value="attention" />
-          <el-option label="紧急" value="emergency" />
-          <el-option label="已离世" value="dead" />
-        </el-select>
+        <el-button @click="handleReset"><el-icon><Refresh /></el-icon>重置筛选</el-button>
+          <el-button type="primary" size="default" @click="openDialog('add')">
+            <el-icon><Plus /></el-icon>
+            添加小猫信息
+          </el-button>
+          
+          <el-select 
+            v-model="healthFilter"
+            placeholder="筛选健康状态" 
+            size="default" 
+            style="margin-left: 16px; width: 180px;"
+            @change="handleFilter"
+          >
+            <el-option label="全部" value="all" />
+            <el-option label="健康" value="normal" />
+            <el-option label="需要关注" value="attention" />
+            <el-option label="紧急" value="emergency" />
+            <el-option label="已离世" value="dead" />
+          </el-select>
+        </SearchFilterBar>
       </div>
     </div>
 
@@ -64,6 +56,7 @@
         <template #imageUrl="scope">
           <div class="image-cell">
             <el-image
+              lazy
               v-if="scope.row.imageUrl"
               :src="scope.row.imageUrl"
               fit="cover"
@@ -80,11 +73,11 @@
           <el-button
             type="primary"
             size="small"
-            @click="openDialog('edit', scope.row as DogInfo)"
+            @click="openDialog('edit', scope.row as CatInfo)"
             class="edit-btn"
-            :disabled="(scope.row as DogInfo).healthStatus === 'dead'"
+            :disabled="(scope.row as CatInfo).healthStatus === 'dead'"
           >
-            {{ (scope.row as DogInfo).healthStatus === 'dead' ? '已离世' : '编辑' }}
+            {{ (scope.row as CatInfo).healthStatus === 'dead' ? '已离世' : '编辑' }}
           </el-button>
         </template>
       </TableCard>
@@ -105,22 +98,22 @@
     >
       <el-form 
         ref="formRef" 
-        :model="dogForm" 
+        :model="catForm" 
         label-width="120px" 
-        class="dog-form"
+        class="cat-form"
         :rules="formRules"
       >
-        <el-form-item label="小狗名字" prop="name">
-          <el-input v-model="dogForm.name" placeholder="请输入小狗昵称" clearable />
+        <el-form-item label="小猫名字" prop="name">
+          <el-input v-model="catForm.name" placeholder="请输入小猫昵称" clearable />
         </el-form-item>
-        <el-form-item label="小狗年龄" prop="age">
-          <el-input v-model="dogForm.age" placeholder="例：6个月 / 1岁" clearable />
+        <el-form-item label="小猫年龄" prop="age">
+          <el-input v-model="catForm.age" placeholder="例：6个月 / 1岁" clearable />
         </el-form-item>
-        <el-form-item label="小狗品种" prop="breed">
-          <el-input v-model="dogForm.breed" placeholder="例：中华田园犬 / 金毛" clearable />
+        <el-form-item label="小猫品种" prop="breed">
+          <el-input v-model="catForm.breed" placeholder="例：中华田园猫 / 蓝猫" clearable />
         </el-form-item>
         <el-form-item label="健康状态" prop="healthStatus">
-          <el-select v-model="dogForm.healthStatus" placeholder="请选择健康状态" clearable>
+          <el-select v-model="catForm.healthStatus" placeholder="请选择健康状态" clearable>
             <el-option label="健康" value="normal" />
             <el-option label="需要关注" value="attention" />
             <el-option label="紧急" value="emergency" />
@@ -128,14 +121,14 @@
           </el-select>
         </el-form-item>
         <el-form-item label="健康状况" prop="health">
-          <el-input v-model="dogForm.health" placeholder="例：已绝育/轻微外伤/健康" clearable />
+          <el-input v-model="catForm.health" placeholder="例：已绝育/轻微外伤/健康" clearable />
         </el-form-item>
         <el-form-item label="活动区域" prop="area">
-          <el-input v-model="dogForm.area" placeholder="例：一号教学楼旁 / 食堂后门" clearable />
+          <el-input v-model="catForm.area" placeholder="例：一号教学楼旁 / 食堂后门" clearable />
         </el-form-item>
         <el-form-item label="发现时间" prop="foundTime">
           <el-date-picker
-            v-model="dogForm.foundTime"
+            v-model="catForm.foundTime"
             type="datetime"
             value-format="YYYY-MM-DD HH:mm:ss"
             placeholder="请选择发现时间"
@@ -145,7 +138,7 @@
         </el-form-item>
         <el-form-item label="离世时间" prop="deadTime">
           <el-date-picker
-            v-model="dogForm.deadTime"
+            v-model="catForm.deadTime"
             type="datetime"
             value-format="YYYY-MM-DD HH:mm:ss"
             placeholder="请选择离世时间"
@@ -153,7 +146,7 @@
             style="width: 100%;"
           />
         </el-form-item>
-        <el-form-item label="小狗照片">
+        <el-form-item label="小猫照片">
           <el-upload
             class="avatar-uploader"
             :action="uploadUrl"
@@ -164,7 +157,7 @@
             :before-upload="beforeImageUpload"
             name="image"
           >
-            <img v-if="dogForm.imageUrl" :src="dogForm.imageUrl" class="avatar" />
+            <img v-if="catForm.imageUrl" :src="catForm.imageUrl" class="avatar" />
             <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
           </el-upload>
         </el-form-item>
@@ -173,7 +166,7 @@
       <template #footer>
         <div class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="submitDogInfo">
+          <el-button type="primary" @click="submitCatInfo">
             {{ dialogMode === 'add' ? '确认新增' : '确认修改' }}
           </el-button>
         </div>
@@ -185,23 +178,24 @@
 <script lang="ts" setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessageBox, ElMessage, ElNotification } from 'element-plus' 
-import { Plus, Search, Refresh } from '@element-plus/icons-vue'
+import { Plus, Search,Refresh } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
-import service from '../components/request.ts'
-import { getDogsApi, createDogApi, updateDogApi, DOG_UPLOAD_URL } from '../api/dog'
-import Pagination from '../components/Pagination.vue'
-import StatusTag from '../components/StatusTag.vue'
-import TableCard from '../components/TableCard.vue'
-import SearchFilterBar from '../components/SearchFilterBar.vue'
-import { useUserStore } from '../stores/user.ts'
+import service from '../../components/request'
+import { getCatsApi, createCatApi, updateCatApi, CAT_UPLOAD_URL } from '../../api/cat'
+import Pagination from '../../components/Pagination.vue'
+import StatusTag from '../../components/StatusTag.vue'
+import TableCard from '../../components/TableCard.vue'
+import SearchFilterBar from '../../components/SearchFilterBar.vue'
+import { useUserStore } from '../../stores/user'
+import { get } from '@vueuse/core'
 
 const userStore = useUserStore()
 
 // 最小加载时长函数
 const minLoadingTime = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-// 定义小狗信息接口
-interface DogInfo {
+// 定义小猫信息接口
+interface CatInfo {
   id: number 
   name: string
   age: string
@@ -215,7 +209,7 @@ interface DogInfo {
 }
 
 // 初始化表单
-const dogForm = ref<DogInfo>({     
+const catForm = ref<CatInfo>({     
   id: 0,
   name: '',
   age: '',
@@ -234,10 +228,10 @@ const healthFilter = ref('all')
 const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
-const uploadUrl = ref(DOG_UPLOAD_URL)
+const uploadUrl = ref(CAT_UPLOAD_URL)
 
 // 表格数据（后端分页返回的当前页数据）
-const tableData = ref<DogInfo[]>([])
+const tableData = ref<CatInfo[]>([])
 
 // 表格列配置
 const columnsData = ref([
@@ -246,7 +240,12 @@ const columnsData = ref([
   { prop: 'age', label: '年龄', width: '120' },
   { prop: 'breed', label: '品种', width: '150' },
   { prop: 'health', label: '健康状况', minWidth: '200' }, 
-  { prop: 'area', label: '经常活动区域', width: '180' }
+  { prop: 'area', label: '经常活动区域', width: '180' },
+  { prop: 'healthStatus', label: '健康状态', width: '120' },
+  { prop: 'health', label: '健康描述', minWidth: '200' },
+  { prop: 'area', label: '区域', width: '120' },
+  { prop: 'foundTime', label: '发现时间', width: '180' },
+  { prop: 'isDead', label: '存活状态', width: '120' }
 ])
 
 // 核心变量
@@ -254,14 +253,15 @@ const dialogMode = ref<'add' | 'edit'>('add')
 const editId = ref<number | null>(null)
 const dialogVisible = ref(false)
 const formRef = ref<FormInstance>()
+const isEditMode = computed(() => dialogMode.value === 'edit')
 
 // 弹窗标题
 const dialogTitle = computed(() => {
-  return dialogMode.value === 'add' ? '新增流浪狗救助信息' : '编辑流浪狗救助信息'
+  return dialogMode.value === 'add' ? '新增流浪猫救助信息' : '编辑流浪猫救助信息'
 })
 
 // ===================== 数据请求 =====================
-const getDogList = async () => { 
+const getCatList = async () => { 
   loading.value = true
   try { 
     const params: any = {
@@ -276,8 +276,8 @@ const getDogList = async () => {
     }
 
     const [response] = await Promise.all([
-      service.get('/api/dogs', { params }),
-      getDogsApi(params),
+      service.get('/api/cats', { params }),
+      getCatsApi(params),
       minLoadingTime(300)
     ])
 
@@ -286,33 +286,33 @@ const getDogList = async () => {
       tableData.value = (response.data.data.list || []) as any
       total.value = response.data.data.total || 0
     } else { 
-      ElMessage.error('获取小狗信息失败：' + (response.data.msg || '未知错误'))
+      ElMessage.error('获取小猫信息失败：' + (response.data.msg || '未知错误'))
     }
   } catch (err: any) { 
-    ElMessage.error('获取小狗信息失败，请检查后端是否启动')
-    console.error('查询小狗列表出错：', err)
+    ElMessage.error('获取小猫信息失败，请检查后端是否启动')
+    console.error('查询小猫列表出错：', err)
   } finally {
     loading.value = false
   }
 }
 
+// 监听分页和筛选变化，自动请求数据（搜索由防抖组件触发）
 watch([currentPage, pageSize, healthFilter], () => {
-  getDogList()
+  getCatList()
 })
 
 // ===================== 搜索/筛选 =====================
-const handleSearch = (keyword: string) => {
-  searchKeyword.value = keyword.trim()
+const handleSearch = (keyWord:string) => {
+  searchKeyword.value = keyWord.trim()
   currentPage.value = 1
-  getDogList()
+  getCatList()
 }
 
 const handleReset = () => {
   searchKeyword.value = ''
   healthFilter.value = 'all'
   currentPage.value = 1
-  getDogList()
-  ElMessage.info('已重置搜索条件')
+  getCatList()
 }
 
 const handleFilter = () => {
@@ -320,26 +320,26 @@ const handleFilter = () => {
 }
 
 // ===================== 弹窗操作 =====================
-const openDialog = (mode: 'add' | 'edit', row?: DogInfo) => {
+const openDialog = (mode: 'add' | 'edit', row?: CatInfo) => {
   dialogMode.value = mode
   formRef.value?.clearValidate()
   
   if (mode === 'edit' && row) {
     editId.value = row.id!
-    dogForm.value = { 
+    catForm.value = { 
       ...row,
       foundTime: row.foundTime || new Date().toISOString().slice(0, 19).replace('T', ' '),
       imageUrl: row.imageUrl || ''
     }
   } else {
     editId.value = null
-    resetDogForm() 
+    resetCatForm() 
   }
   dialogVisible.value = true
 }
 
-const resetDogForm = () => {
-  dogForm.value = {
+const resetCatForm = () => {
+  catForm.value = {
     id: 0,
     name: '', 
     age: '', 
@@ -365,7 +365,7 @@ const handleClose = async (done: () => void) => {
         customClass: 'custom-message-box'
       }
     )
-    resetDogForm()
+    resetCatForm()
     done()
   } catch {
     ElMessage.info('已取消')
@@ -375,9 +375,9 @@ const handleClose = async (done: () => void) => {
 
 // ===================== 表单校验 =====================
 const formRules = ref<FormRules>({
-  name: [{ required: true, message: '小狗名字不能为空哦~', trigger: 'blur' }],
-  age: [{ required: true, message: '请填写小狗年龄（如：6个月/1岁）', trigger: 'blur' }],
-  breed: [{ required: true, message: '请输入小狗品种', trigger: 'blur' }],
+  name: [{ required: true, message: '小猫名字不能为空哦~', trigger: 'blur' }],
+  age: [{ required: true, message: '请填写小猫年龄（如：6个月/1岁）', trigger: 'blur' }],
+  breed: [{ required: true, message: '请输入小猫品种', trigger: 'blur' }],
   healthStatus: [{ required: true, message: '请选择健康状态', trigger: 'blur' }],
   health: [{ required: true, message: '请输入健康状况详情', trigger: 'blur' }],
   area: [{ required: true, message: '请输入经常活动区域', trigger: 'blur' }],
@@ -385,7 +385,7 @@ const formRules = ref<FormRules>({
   deadTime: [
     {
       validator: (rule, value, callback) => {
-        if (dogForm.value.healthStatus === 'dead' && !value) {
+        if (catForm.value.healthStatus === 'dead' && !value) {
           callback(new Error('离世时间不能为空'))
         } else {
           callback()
@@ -397,39 +397,39 @@ const formRules = ref<FormRules>({
 })
 
 // ===================== 提交表单 =====================
-const submitDogInfo = () => {
+const submitCatInfo = () => {
   formRef.value?.validate(async (valid) => {
     if (valid) {
       if (dialogMode.value === 'edit' && !editId.value) {
-        ElMessage.error('编辑失败：未获取到小狗ID，请刷新页面重试')
+        ElMessage.error('编辑失败：未获取到小猫ID，请刷新页面重试')
         return
       }
 
       loading.value = true
       try {
-        const submitData = { ...dogForm.value }
+        const submitData = { ...catForm.value }
 
         const [res] = await Promise.all([
           dialogMode.value === 'add' 
-            ? service.post('/api/dogs', submitData)
-            : service.put(`/api/dogs/${editId.value}`, submitData),
+            ? service.post('/api/cats', submitData)
+            : service.put(`/api/cats/${editId.value}`, submitData),
           dialogMode.value === 'add'
-            ? createDogApi(submitData)
-            : updateDogApi(editId.value!, submitData),
+            ? createCatApi(submitData)
+            : updateCatApi(editId.value!, submitData),
           minLoadingTime(500)
         ])
 
         if (res.data.success) {
           const tip = dialogMode.value === 'add' ? '添加' : '更新'
-          ElNotification.success(`成功${tip}小狗信息！`)
-          getDogList()
+          ElNotification.success(`成功${tip}小猫信息！`)
+          getCatList()
           dialogVisible.value = false
-          resetDogForm()
+          resetCatForm()
         } else {
           ElMessage.error(`操作失败：${res.data.msg || '后端返回未知错误'}`)
         }
       } catch (err: any) {
-        console.error('提交小狗信息失败详情：', err)
+        console.error('提交小猫信息失败详情：', err)
         if (err.response) {
           const errMsg = err.response.data?.msg || `请求失败（状态码：${err.response.status}）`
           ElMessage.error(`操作失败：${errMsg}`)
@@ -450,7 +450,7 @@ const submitDogInfo = () => {
 // ===================== 图片上传 =====================
 const handleImageUploadSuccess = (response: any) => {
   if (response.success) {
-    dogForm.value.imageUrl = response.data.imageUrl
+    catForm.value.imageUrl = response.data.imageUrl
     ElMessage.success('图片上传成功！')
   } else {
     ElMessage.error('图片上传失败：' + response.msg)
@@ -475,13 +475,13 @@ const beforeImageUpload = (file: File) => {
   return isImage && isLt5M
 }
 
+// 页面挂载时自动加载数据
 onMounted(() => {
-  getDogList()
+  getCatList()
 })
 </script>
 
 <style lang="scss" scoped>
-
 .main {
   max-width: 1200px;
   width: 100%;

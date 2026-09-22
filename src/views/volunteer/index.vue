@@ -106,16 +106,15 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessageBox, ElMessage, ElNotification } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
-import service from '../components/request.ts'
 import {
   getActivityApi,
   getActivityParticipantsApi,
   createActivityApi,
   updateActivityApi,
   deleteActivityApi
-} from '../api/activity'
-import Pagination from '../components/Pagination.vue'
-import BaseLoading from '../components/BaseLoading.vue'
+} from '../../api/activity'
+import Pagination from '../../components/Pagination.vue'
+import BaseLoading from '../../components/BaseLoading.vue'
 
 interface Activity {
   id: number

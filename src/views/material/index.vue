@@ -160,12 +160,12 @@ echarts.use([
   GridComponent,
   CanvasRenderer
 ])
-import { getMaterialsApi, getMaterialsChartDataApi, updateMaterialApi, supplementMaterialApi } from '../api/material'
-import SearchFilterBar from '../components/SearchFilterBar.vue'
-import Pagination from '../components/Pagination.vue'
-import TableCard from '../components/TableCard.vue'
-import BaseLoading from '../components/BaseLoading.vue'
-import StatusTag from '../components/StatusTag.vue'
+import { getMaterialsApi, getMaterialsChartDataApi, updateMaterialApi, supplementMaterialApi } from '../../api/material'
+import SearchFilterBar from '../../components/SearchFilterBar.vue'
+import Pagination from '../../components/Pagination.vue'
+import TableCard from '../../components/TableCard.vue'
+import BaseLoading from '../../components/BaseLoading.vue'
+import StatusTag from '../../components/StatusTag.vue'
 
 // ========== 表格列配置 ==========
 const columns = ref([

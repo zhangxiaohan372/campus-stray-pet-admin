@@ -7,16 +7,16 @@ import { getFallbackPermissions } from '../config/permissions'
 
 // 路由组件 - 使用懒加载
 const Layout = () => import('../layouts/Layout.vue')
-const HomeView = () => import('../views/HomeView.vue')
-const CatPage = () => import('../views/CatPage.vue')
-const DogPage = () => import('../views/DogPage.vue')
-const SchoolMap = () => import('../views/SchoolMap.vue')
-const StudentPage = () => import('../views/StudentPage.vue')
-const MaterialManagement = () => import('../views/MaterialManagement.vue')
-const Login = () => import('../views/Login.vue')
-const Announcement = () => import('../views/Announcement.vue')
-const VolunteerActivity = () => import('../views/VolunteerActivity.vue')
-const PermissionManagement = () => import('../views/PermissionManagement.vue')
+const HomeView = () => import('../views/home/index.vue')
+const CatPage = () => import('../views/cat/index.vue')
+const DogPage = () => import('../views/dog/index.vue')
+const SchoolMap = () => import('../views/school-map/index.vue')
+const StudentPage = () => import('../views/student/index.vue')
+const MaterialManagement = () => import('../views/material/index.vue')
+const Login = () => import('../views/login/index.vue')
+const Announcement = () => import('../views/announcement/index.vue')
+const VolunteerActivity = () => import('../views/volunteer/index.vue')
+const PermissionManagement = () => import('../views/permission/index.vue')
 
 declare module 'vue-router' {
   interface RouteMeta {
