@@ -132,9 +132,6 @@
 
       <!-- 底部操作与提示 -->
       <div class="bottom-bar">
-        <div class="bottom-tip">
-          💡 提示：点击每行左侧箭头可下拉/收起该模块的二级权限项；勾选后请点击【保存权限配置】持久化至数据库。
-        </div>
         <div class="bottom-actions">
           <el-button type="primary" plain @click="router.push('/')">
             <el-icon style="margin-right: 4px;"><House /></el-icon>

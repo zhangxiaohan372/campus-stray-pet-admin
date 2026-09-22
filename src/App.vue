@@ -1,10 +1,13 @@
 <template>
   <router-view />
-  <FloatAIQA />
+  <FloatAIQA v-if="route.name !== 'login'" />
 </template>
 
 <script lang="ts" setup>
+import { useRoute } from 'vue-router'
 import FloatAIQA from './components/FloatAIQA.vue'
+
+const route = useRoute()
 </script>
 
 <style>
