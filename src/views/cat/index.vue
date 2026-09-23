@@ -14,8 +14,8 @@
           @reset="handleReset"
           :debounce-time="1000"
         >
-        <el-button @click="handleReset"><el-icon><Refresh /></el-icon>重置筛选</el-button>
-          <el-button type="primary" size="default" @click="openDialog('add')">
+          <el-button @click="handleReset"><el-icon><Refresh /></el-icon>重置筛选</el-button>
+          <el-button type="primary" size="default" @click="dialogRef?.open('add')">
             <el-icon><Plus /></el-icon>
             添加小猫信息
           </el-button>
@@ -73,7 +73,7 @@
           <el-button
             type="primary"
             size="small"
-            @click="openDialog('edit', scope.row as CatInfo)"
+            @click="dialogRef?.open('edit', scope.row as CatInfo)"
             class="edit-btn"
             :disabled="(scope.row as CatInfo).healthStatus === 'dead'"
           >
@@ -89,138 +89,24 @@
       v-model:page-size="pageSize"
     />
 
-    <!-- 弹窗 -->
-    <el-dialog
-      v-model="dialogVisible"
-      :title="dialogTitle"
-      width="550"
-      :before-close="handleClose"
-    >
-      <el-form 
-        ref="formRef" 
-        :model="catForm" 
-        label-width="120px" 
-        class="cat-form"
-        :rules="formRules"
-      >
-        <el-form-item label="小猫名字" prop="name">
-          <el-input v-model="catForm.name" placeholder="请输入小猫昵称" clearable />
-        </el-form-item>
-        <el-form-item label="小猫年龄" prop="age">
-          <el-input v-model="catForm.age" placeholder="例：6个月 / 1岁" clearable />
-        </el-form-item>
-        <el-form-item label="小猫品种" prop="breed">
-          <el-input v-model="catForm.breed" placeholder="例：中华田园猫 / 蓝猫" clearable />
-        </el-form-item>
-        <el-form-item label="健康状态" prop="healthStatus">
-          <el-select v-model="catForm.healthStatus" placeholder="请选择健康状态" clearable>
-            <el-option label="健康" value="normal" />
-            <el-option label="需要关注" value="attention" />
-            <el-option label="紧急" value="emergency" />
-            <el-option label="已离世" value="dead" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="健康状况" prop="health">
-          <el-input v-model="catForm.health" placeholder="例：已绝育/轻微外伤/健康" clearable />
-        </el-form-item>
-        <el-form-item label="活动区域" prop="area">
-          <el-input v-model="catForm.area" placeholder="例：一号教学楼旁 / 食堂后门" clearable />
-        </el-form-item>
-        <el-form-item label="发现时间" prop="foundTime">
-          <el-date-picker
-            v-model="catForm.foundTime"
-            type="datetime"
-            value-format="YYYY-MM-DD HH:mm:ss"
-            placeholder="请选择发现时间"
-            clearable
-            style="width: 100%;"
-          />
-        </el-form-item>
-        <el-form-item label="离世时间" prop="deadTime">
-          <el-date-picker
-            v-model="catForm.deadTime"
-            type="datetime"
-            value-format="YYYY-MM-DD HH:mm:ss"
-            placeholder="请选择离世时间"
-            clearable
-            style="width: 100%;"
-          />
-        </el-form-item>
-        <el-form-item label="小猫照片">
-          <el-upload
-            class="avatar-uploader"
-            :action="uploadUrl"
-            :headers="{ Authorization: 'Bearer ' + (userStore.userInfo?.token || '') }"
-            :show-file-list="false"
-            :on-success="handleImageUploadSuccess"
-            :on-error="handleImageUploadError"
-            :before-upload="beforeImageUpload"
-            name="image"
-          >
-            <img v-if="catForm.imageUrl" :src="catForm.imageUrl" class="avatar" />
-            <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
-          </el-upload>
-        </el-form-item>
-      </el-form>
-
-      <template #footer>
-        <div class="dialog-footer">
-          <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="submitCatInfo">
-            {{ dialogMode === 'add' ? '确认新增' : '确认修改' }}
-          </el-button>
-        </div>
-      </template>
-    </el-dialog>
+    <!-- 小猫新增/编辑弹窗组件 -->
+    <CatFormDialog ref="dialogRef" @success="getCatList" />
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { ElMessageBox, ElMessage, ElNotification } from 'element-plus' 
-import { Plus, Search,Refresh } from '@element-plus/icons-vue'
-import type { FormInstance, FormRules } from 'element-plus'
-import service from '../../components/request'
-import { getCatsApi, createCatApi, updateCatApi, CAT_UPLOAD_URL } from '../../api/cat'
+import { ref, onMounted, watch } from 'vue'
+import { ElMessage } from 'element-plus' 
+import { Plus, Search, Refresh } from '@element-plus/icons-vue'
+import { getCatsApi } from '../../api/cat'
 import Pagination from '../../components/Pagination.vue'
 import StatusTag from '../../components/StatusTag.vue'
 import TableCard from '../../components/TableCard.vue'
 import SearchFilterBar from '../../components/SearchFilterBar.vue'
-import { useUserStore } from '../../stores/user'
-import { get } from '@vueuse/core'
-
-const userStore = useUserStore()
+import CatFormDialog, { type CatInfo } from './components/CatFormDialog.vue'
 
 // 最小加载时长函数
 const minLoadingTime = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-
-// 定义小猫信息接口
-interface CatInfo {
-  id: number 
-  name: string
-  age: string
-  breed: string
-  health: string
-  healthStatus: 'normal' | 'emergency' | 'attention' | 'dead'
-  area: string
-  foundTime?: string
-  deadTime?: string
-  imageUrl?: string
-}
-
-// 初始化表单
-const catForm = ref<CatInfo>({     
-  id: 0,
-  name: '',
-  age: '',
-  breed: '',
-  health: '',
-  healthStatus: 'normal',
-  area: '',
-  foundTime: '',
-  deadTime: '',
-  imageUrl: '',
-})
 
 const loading = ref(false)
 const searchKeyword = ref('')
@@ -228,7 +114,7 @@ const healthFilter = ref('all')
 const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
-const uploadUrl = ref(CAT_UPLOAD_URL)
+const dialogRef = ref<InstanceType<typeof CatFormDialog>>()
 
 // 表格数据（后端分页返回的当前页数据）
 const tableData = ref<CatInfo[]>([])
@@ -248,18 +134,6 @@ const columnsData = ref([
   { prop: 'isDead', label: '存活状态', width: '120' }
 ])
 
-// 核心变量
-const dialogMode = ref<'add' | 'edit'>('add')
-const editId = ref<number | null>(null)
-const dialogVisible = ref(false)
-const formRef = ref<FormInstance>()
-const isEditMode = computed(() => dialogMode.value === 'edit')
-
-// 弹窗标题
-const dialogTitle = computed(() => {
-  return dialogMode.value === 'add' ? '新增流浪猫救助信息' : '编辑流浪猫救助信息'
-})
-
 // ===================== 数据请求 =====================
 const getCatList = async () => { 
   loading.value = true
@@ -276,13 +150,11 @@ const getCatList = async () => {
     }
 
     const [response] = await Promise.all([
-      service.get('/api/cats', { params }),
       getCatsApi(params),
       minLoadingTime(300)
     ])
 
     if (response.data.success) { 
-      tableData.value = response.data.data.list || []
       tableData.value = (response.data.data.list || []) as any
       total.value = response.data.data.total || 0
     } else { 
@@ -296,13 +168,13 @@ const getCatList = async () => {
   }
 }
 
-// 监听分页和筛选变化，自动请求数据（搜索由防抖组件触发）
+// 监听分页和筛选变化，自动请求数据
 watch([currentPage, pageSize, healthFilter], () => {
   getCatList()
 })
 
 // ===================== 搜索/筛选 =====================
-const handleSearch = (keyWord:string) => {
+const handleSearch = (keyWord: string) => {
   searchKeyword.value = keyWord.trim()
   currentPage.value = 1
   getCatList()
@@ -319,162 +191,6 @@ const handleFilter = () => {
   currentPage.value = 1
 }
 
-// ===================== 弹窗操作 =====================
-const openDialog = (mode: 'add' | 'edit', row?: CatInfo) => {
-  dialogMode.value = mode
-  formRef.value?.clearValidate()
-  
-  if (mode === 'edit' && row) {
-    editId.value = row.id!
-    catForm.value = { 
-      ...row,
-      foundTime: row.foundTime || new Date().toISOString().slice(0, 19).replace('T', ' '),
-      imageUrl: row.imageUrl || ''
-    }
-  } else {
-    editId.value = null
-    resetCatForm() 
-  }
-  dialogVisible.value = true
-}
-
-const resetCatForm = () => {
-  catForm.value = {
-    id: 0,
-    name: '', 
-    age: '', 
-    breed: '', 
-    health: '', 
-    healthStatus: 'normal', 
-    area: '',
-    foundTime: new Date().toISOString().slice(0, 19).replace('T', ' '),
-    deadTime: '',
-    imageUrl: '',
-  }
-  formRef.value?.clearValidate()
-}
-
-const handleClose = async (done: () => void) => {
-  try {
-    await ElMessageBox.confirm(
-      '确定关闭？未保存内容将丢失',
-      '提示',
-      {
-        center: true,
-        type: 'warning',
-        customClass: 'custom-message-box'
-      }
-    )
-    resetCatForm()
-    done()
-  } catch {
-    ElMessage.info('已取消')
-    done()
-  }
-}
-
-// ===================== 表单校验 =====================
-const formRules = ref<FormRules>({
-  name: [{ required: true, message: '小猫名字不能为空哦~', trigger: 'blur' }],
-  age: [{ required: true, message: '请填写小猫年龄（如：6个月/1岁）', trigger: 'blur' }],
-  breed: [{ required: true, message: '请输入小猫品种', trigger: 'blur' }],
-  healthStatus: [{ required: true, message: '请选择健康状态', trigger: 'blur' }],
-  health: [{ required: true, message: '请输入健康状况详情', trigger: 'blur' }],
-  area: [{ required: true, message: '请输入经常活动区域', trigger: 'blur' }],
-  foundTime: [{ required: true, message: '请选择发现时间', trigger: 'change' }],
-  deadTime: [
-    {
-      validator: (rule, value, callback) => {
-        if (catForm.value.healthStatus === 'dead' && !value) {
-          callback(new Error('离世时间不能为空'))
-        } else {
-          callback()
-        }
-      },
-      trigger: 'change'
-    }
-  ]
-})
-
-// ===================== 提交表单 =====================
-const submitCatInfo = () => {
-  formRef.value?.validate(async (valid) => {
-    if (valid) {
-      if (dialogMode.value === 'edit' && !editId.value) {
-        ElMessage.error('编辑失败：未获取到小猫ID，请刷新页面重试')
-        return
-      }
-
-      loading.value = true
-      try {
-        const submitData = { ...catForm.value }
-
-        const [res] = await Promise.all([
-          dialogMode.value === 'add' 
-            ? service.post('/api/cats', submitData)
-            : service.put(`/api/cats/${editId.value}`, submitData),
-          dialogMode.value === 'add'
-            ? createCatApi(submitData)
-            : updateCatApi(editId.value!, submitData),
-          minLoadingTime(500)
-        ])
-
-        if (res.data.success) {
-          const tip = dialogMode.value === 'add' ? '添加' : '更新'
-          ElNotification.success(`成功${tip}小猫信息！`)
-          getCatList()
-          dialogVisible.value = false
-          resetCatForm()
-        } else {
-          ElMessage.error(`操作失败：${res.data.msg || '后端返回未知错误'}`)
-        }
-      } catch (err: any) {
-        console.error('提交小猫信息失败详情：', err)
-        if (err.response) {
-          const errMsg = err.response.data?.msg || `请求失败（状态码：${err.response.status}）`
-          ElMessage.error(`操作失败：${errMsg}`)
-        } else if (err.request) {
-          ElMessage.error('操作失败：无法连接到后端服务器，请检查后端是否启动（http://localhost:3001）')
-        } else {
-          ElMessage.error(`操作失败：${err.message}`)
-        }
-      } finally {
-        loading.value = false
-      }
-    } else { 
-      ElMessage.error('请完善表单信息后再提交')
-    }
-  })
-}
-
-// ===================== 图片上传 =====================
-const handleImageUploadSuccess = (response: any) => {
-  if (response.success) {
-    catForm.value.imageUrl = response.data.imageUrl
-    ElMessage.success('图片上传成功！')
-  } else {
-    ElMessage.error('图片上传失败：' + response.msg)
-  }
-}
-
-const handleImageUploadError = (error: any) => {
-  ElMessage.error('图片上传失败，请重试')
-  console.error('上传失败：', error)
-}
-
-const beforeImageUpload = (file: File) => {
-  const isImage = file.type === 'image/jpeg' || file.type === 'image/png' || file.type === 'image/jpg'
-  const isLt5M = file.size / 1024 / 1024 < 5
-
-  if (!isImage) {
-    ElMessage.error('只能上传 JPG/PNG 图片！')
-  }
-  if (!isLt5M) {
-    ElMessage.error('图片大小不能超过 5MB！')
-  }
-  return isImage && isLt5M
-}
-
 // 页面挂载时自动加载数据
 onMounted(() => {
   getCatList()
@@ -486,17 +202,11 @@ onMounted(() => {
   max-width: 1200px;
   width: 100%;
   margin: 0 auto;
-  padding: 16px;
-  min-height: calc(100vh - 80px);
-  background-color: #f5f7fa;
+  padding: 20px 0;
 }
 
 .header {
-  background-color: #fff;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  margin-bottom: 16px;
+  margin-bottom: 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -592,9 +302,6 @@ onMounted(() => {
   .el-input {
     width: 100% !important;
   }
-  ::v-deep .custom-message-box {
-    width: 90% !important;
-  }
 }
 
 @media (max-width: 480px) {
@@ -612,20 +319,6 @@ onMounted(() => {
   }
   .pagination {
     padding: 8px 12px;
-  }
-}
-
-.avatar-uploader {
-  .avatar {
-    width: 178px;
-    height: 178px;
-    display: block;
-  }
-  .avatar-uploader-icon {
-    width: 178px;
-    height: 178px;
-    font-size: 24px;
-    color: #999;
   }
 }
 

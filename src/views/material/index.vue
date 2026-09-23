@@ -64,11 +64,11 @@
     <div class="charts-container">
       <div class="chart-item">
         <h3>各救助点紧缺物资数量</h3>
-        <div ref="pieChartRef" class="chart" style="width: 100%; height: 300px;"></div>
+        <BaseChart :options="pieChartOptions" :loading="chartLoading" height="300px" />
       </div>
       <div class="chart-item">
         <h3>物资库存 vs 最低阈值</h3>
-        <div ref="barChartRef" class="chart" style="width: 100%; height: 300px;"></div>
+        <BaseChart :options="barChartOptions" :loading="chartLoading" height="300px" />
       </div>
     </div>
 
@@ -136,31 +136,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
-import * as echarts from 'echarts/core'
-import { BarChart, LineChart, PieChart } from 'echarts/charts'
-import {
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent
-} from 'echarts/components'
-import { CanvasRenderer } from 'echarts/renderers'
-
-// 注册需要的组件
-echarts.use([
-  BarChart,
-  LineChart,
-  PieChart,
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent,
-  CanvasRenderer
-])
 import { getMaterialsApi, getMaterialsChartDataApi, updateMaterialApi, supplementMaterialApi } from '../../api/material'
+import BaseChart from '../../components/BaseChart.vue'
 import SearchFilterBar from '../../components/SearchFilterBar.vue'
 import Pagination from '../../components/Pagination.vue'
 import TableCard from '../../components/TableCard.vue'
@@ -188,11 +168,10 @@ const searchKeyword = ref('')
 const pointFilter = ref('')
 const speciesFilter = ref('')
 
-// 图表
-const pieChartRef = ref<HTMLDivElement>()
-const barChartRef = ref<HTMLDivElement>()
-let pieChart: echarts.ECharts | null = null
-let barChart: echarts.ECharts | null = null
+// 图表配置与状态
+const chartLoading = ref(false)
+const pieChartOptions = ref<any>({})
+const barChartOptions = ref<any>({})
 
 // 弹窗
 const dialogVisible = ref(false)
@@ -253,6 +232,7 @@ const fetchTableData = async () => {
 
 // ========== 获取图表数据（独立接口） ==========
 const fetchChartData = async () => {
+  chartLoading.value = true
   try {
     const res = await getMaterialsChartDataApi()
     if (res.data.success) {
@@ -263,14 +243,14 @@ const fetchChartData = async () => {
     }
   } catch (err) {
     console.error('图表请求失败', err)
+  } finally {
+    chartLoading.value = false
   }
 }
 
 const renderCharts = (pieData: any[], barData: any) => {
   // 饼图
-  if (pieChart) pieChart.dispose()
-  pieChart = echarts.init(pieChartRef.value!)
-  pieChart.setOption({
+  pieChartOptions.value = {
     tooltip: { trigger: 'item' },
     legend: { top: '5%', left: 'center' },
     series: [{
@@ -284,12 +264,10 @@ const renderCharts = (pieData: any[], barData: any) => {
       labelLine: { show: false },
       data: pieData || []
     }]
-  })
+  }
 
   // 柱状图
-  if (barChart) barChart.dispose()
-  barChart = echarts.init(barChartRef.value!)
-  barChart.setOption({
+  barChartOptions.value = {
     tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
     xAxis: { type: 'category', data: barData?.categories || [], axisLabel: { rotate: 15 } },
     yAxis: { type: 'value' },
@@ -297,7 +275,7 @@ const renderCharts = (pieData: any[], barData: any) => {
       { name: '当前库存', type: 'bar', data: barData?.quantityData || [], color: '#5470c6' },
       { name: '最低阈值', type: 'bar', data: barData?.minStockData || [], color: '#91cc75' }
     ]
-  })
+  }
 }
 
 // ========== 筛选 / 分页监听 ==========
@@ -382,15 +360,6 @@ const handleDialogClose = () => {
 onMounted(() => {
   fetchTableData()
   fetchChartData()
-  window.addEventListener('resize', () => {
-    pieChart?.resize()
-    barChart?.resize()
-  })
-})
-
-onBeforeUnmount(() => {
-  pieChart?.dispose()
-  barChart?.dispose()
 })
 </script>
 
