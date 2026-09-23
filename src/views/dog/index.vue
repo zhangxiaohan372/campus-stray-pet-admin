@@ -75,6 +75,16 @@
           </div>
         </template>
 
+        <!-- 存活状态列 -->
+        <template #isDead="scope">
+          <el-tag
+            :type="(scope.row.healthStatus === 'dead' || scope.row.isDead === 1) ? 'info' : 'success'"
+            size="small"
+          >
+            {{ (scope.row.healthStatus === 'dead' || scope.row.isDead === 1) ? '已离世' : '在校存活' }}
+          </el-tag>
+        </template>
+
         <!-- 操作列 -->
         <template #operate="scope">
           <el-button
@@ -129,16 +139,13 @@ const tableData = ref<DogInfo[]>([])
 // 表格列配置
 const columnsData = ref([
   { prop: 'imageUrl', label: '照片', width: '120' },
-  { prop: 'name', label: '名字', width: '180' },
-  { prop: 'age', label: '年龄', width: '120' },
-  { prop: 'breed', label: '品种', width: '150' },
-  { prop: 'health', label: '健康状况', minWidth: '200' }, 
-  { prop: 'area', label: '经常活动区域', width: '180' },
-  { prop: 'healthStatus', label: '健康状态', width: '120' },
-  { prop: 'health', label: '健康描述', minWidth: '200' },
-  { prop: 'area', label: '区域', width: '120' },
+  { prop: 'name', label: '名字', width: '150' },
+  { prop: 'age', label: '年龄', width: '100' },
+  { prop: 'breed', label: '品种', width: '130' },
+  { prop: 'health', label: '健康状况', minWidth: '220' }, 
+  { prop: 'area', label: '经常活动区域', width: '160' },
   { prop: 'foundTime', label: '发现时间', width: '180' },
-  { prop: 'isDead', label: '存活状态', width: '120' }
+  { prop: 'isDead', label: '存活状态', width: '110' }
 ])
 
 // ===================== 数据请求 =====================
@@ -240,6 +247,10 @@ onMounted(() => {
   border-radius: 12px;
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  background-color: transparent;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
   margin-bottom: 16px;
   position: relative;
   min-height: 400px;

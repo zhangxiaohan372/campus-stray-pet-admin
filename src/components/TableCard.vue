@@ -110,6 +110,9 @@ const isMobile = computed(() => {
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  padding: 20px;
 }
 
 // 移动端卡片样式
@@ -123,7 +126,9 @@ const isMobile = computed(() => {
   padding: 16px;
   border: 1px solid #ebeef5;
   border-radius: 8px;
+  border-radius: 10px;
   background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
 .card-row {
@@ -134,6 +139,7 @@ const isMobile = computed(() => {
 
   .card-label {
     min-width: 80px;
+    min-width: 90px;
     color: #606266;
     font-weight: 500;
   }
@@ -148,6 +154,8 @@ const isMobile = computed(() => {
 .card-operate {
   margin-top: 12px;
   padding-top: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px dashed #ebeef5;
   text-align: right;
 }
@@ -155,9 +163,14 @@ const isMobile = computed(() => {
 @media (max-width: 768px) {
   .container {
     padding: 12px 8px;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
   }
   .card-item {
     padding: 12px;
+    padding: 14px;
   }
 }
 </style>

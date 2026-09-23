@@ -283,6 +283,10 @@ onMounted(() => {
   border-radius: 12px;
   padding: 20px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  background-color: transparent;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
   margin-bottom: 16px;
   position: relative;
   min-height: 400px;
