@@ -1,7 +1,7 @@
 <template>
   <div class="map-page">
     <div class="header">
-      <h2>太原理工大学明向校区 - 流浪宠物救助地图</h2>
+      <h2>太原理工大学明向校区 - 流浪动物救助地图</h2>
     </div>
     
     <div id="map" class="map-container"></div>
