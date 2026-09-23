@@ -35,6 +35,7 @@
         <el-button
           type="primary"
           @click="openDialog('add')"
+          @click="userDialogRef?.open('add')"
           class="add-user-btn"
           style="margin-left: 16px;"
         >
@@ -45,6 +46,7 @@
           type="warning"
           plain
           @click="openRolePermissionDialog"
+          @click="roleDialogRef?.open()"
           style="margin-left: 12px;"
         >
           <el-icon style="margin-right: 4px;"><Key /></el-icon>
@@ -73,6 +75,7 @@
             type="primary"
             size="small"
             @click="openDialog('edit', scope.row as UserInfo)"
+            @click="userDialogRef?.open('edit', scope.row as UserInfo)"
             class="edit-btn"
           >
             编辑
@@ -143,6 +146,11 @@
         </el-scrollbar>
       </div>
     </div>
+    <!-- 排行榜组件 -->
+    <StudentRankCard
+      :volunteer-rank-data="volunteerRankData"
+      :activity-rank-data="activityRankData"
+    />
 
     <!-- 新增/编辑用户弹窗（保持不变） -->
     <el-dialog
@@ -213,6 +221,8 @@
         </div>
       </template>
     </el-dialog>
+    <!-- 新增/编辑用户弹窗 -->
+    <UserFormDialog ref="userDialogRef" @success="handleUserSaved" />
 
     <!-- 角色权限字符配置弹窗 (RBAC) -->
     <el-dialog
@@ -291,23 +301,32 @@
         </div>
       </template>
     </el-dialog>
+    <!-- 角色权限配置弹窗 (RBAC) -->
+    <RolePermissionDialog ref="roleDialogRef" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, watch ,computed} from 'vue'
 import { ElMessageBox, ElMessage, ElNotification } from 'element-plus'
+import { ref, onMounted, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import { Refresh, Key } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import SearchFilterBar from '../../components/SearchFilterBar.vue'
 import service from '../../components/request.ts'
 import { getUsersApi, createUserApi, updateUserApi, getVolunteerRankingApi } from '../../api/user'
+import { getUsersApi, getVolunteerRankingApi } from '../../api/user'
 import { getActivityRankingApi } from '../../api/activity'
 import { getRolesApi, updateRolePermissionsApi } from '../../api/role'
 import { getPermissionTreeApi } from '../../api/auth'
 import Pagination from '../../components/Pagination.vue'
 import TableCard from '../../components/TableCard.vue'
 import { useUserStore } from '../../stores/user'
+import SearchFilterBar from '../../components/SearchFilterBar.vue'
+import StudentRankCard, { type VolunteerRankItem, type ActivityRankItem } from './components/StudentRankCard.vue'
+import UserFormDialog, { type UserInfo } from './components/UserFormDialog.vue'
+import RolePermissionDialog from './components/RolePermissionDialog.vue'
 
 // 定义用户信息接口
 interface UserInfo {
@@ -352,6 +371,10 @@ const loading = ref(false)
 const submitLoading = ref(false)
 const tableData = ref<UserInfo[]>([])
 const total = ref(0)
+
+// 子组件引用
+const userDialogRef = ref<InstanceType<typeof UserFormDialog>>()
+const roleDialogRef = ref<InstanceType<typeof RolePermissionDialog>>()
 
 // 分页相关
 const currentPage = ref(1)
@@ -419,11 +442,13 @@ const getTableData = async () => {
       getUsersApi(params),
       minLoadingTime(300)
     ])
+    const res = await getUsersApi(params)
 
     if (res.data.success) {
       const data = res.data.data
       tableData.value = (data.list || []).map((item: any) => ({
         ...item,
+        id: item.id ?? item.studentId ?? 0,
         registerTime: item.registerTime || '暂无注册时间'
       }))
       total.value = data.total || 0
@@ -485,9 +510,18 @@ const handleFilter = () => {
   currentPage.value = 1
   getTableData()
   ElMessage.info(`筛选条件已应用`)
+  ElMessage.info('筛选条件已应用')
 }
 
 // 监听分页和筛选条件变化，自动请求表格数据（搜索由防抖组件触发）
+// 用户保存成功后的回调
+const handleUserSaved = async () => {
+  await getTableData()
+  await fetchVolunteerRanking()
+  await fetchActivityRanking()
+}
+
+// 监听分页和筛选条件变化
 watch([currentPage, pageSize, roleFilter], () => {
   getTableData()
 })
@@ -761,12 +795,15 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .main {
+<style scoped>
+.student-page {
   max-width: 1200px;
   width: 100%;
   margin: 0 auto;
   padding: 16px;
   min-height: calc(100vh - 80px);
   background-color: #f5f7fa;
+  padding: 20px 0;
 }
 .header {
   background-color: #fff;
@@ -777,6 +814,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 24px;
 }
 .header .title {
   margin: 0;

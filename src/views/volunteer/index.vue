@@ -10,6 +10,7 @@
           </div>
           <div class="header-actions">
             <el-button type="primary" size="default" @click="openDialog('add')">
+            <el-button type="primary" size="default" @click="formDialogRef?.open('add')">
               <el-icon><Plus /></el-icon>
               发布志愿活动
             </el-button>
@@ -56,15 +57,25 @@
             <div class="activity-actions">
               <el-button type="primary" size="small" @click="viewParticipants(activity)">查看报名</el-button>
               <el-button type="success" size="small" @click="openDialog('edit', activity)" v-if="activity.status !== 'completed'">编辑</el-button>
+              <el-button type="primary" size="small" @click="participantsDialogRef?.open(activity)">查看报名</el-button>
+              <el-button type="success" size="small" @click="formDialogRef?.open('edit', activity)" v-if="activity.status !== 'completed'">编辑</el-button>
               <el-button type="danger" size="small" @click="deleteActivity(activity.id)">删除</el-button>
             </div>
           </div>
         </el-card>
         <div v-if="activities.length === 0" class="empty-state"><el-empty description="暂无活动" /></div>
+        <div v-if="activities.length === 0" class="empty-state">
+          <el-empty description="暂无活动" />
+        </div>
       </div>
 
       <div class="pagination-container">
         <Pagination :total="totalActivities" v-model:page-size="pageSize" v-model:current-page="currentPage" />
+        <Pagination
+          :total="totalActivities"
+          v-model:page-size="pageSize"
+          v-model:current-page="currentPage"
+        />
       </div>
     </el-card>
 
@@ -88,6 +99,8 @@
         <el-button type="primary" @click="submitActivity">{{ dialogMode === 'add' ? '发布活动' : '更新活动' }}</el-button>
       </template>
     </el-dialog>
+    <!-- 活动新增/编辑弹窗 -->
+    <ActivityFormDialog ref="formDialogRef" @success="fetchActivities" />
 
     <!-- 查看报名学生弹窗（无审核） -->
     <el-dialog v-model="participantsVisible" :title="`${currentActivity.title || ''} - 报名学生`" width="800" :before-close="handleParticipantsClose">
@@ -98,12 +111,15 @@
         <el-table-column prop="phone" label="联系方式" width="150" />
       </el-table>
     </el-dialog>
+    <!-- 报名学生弹窗 -->
+    <ParticipantsDialog ref="participantsDialogRef" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessageBox, ElMessage, ElNotification } from 'element-plus'
+import { ElMessageBox, ElMessage } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import {
@@ -113,8 +129,11 @@ import {
   updateActivityApi,
   deleteActivityApi
 } from '../../api/activity'
+import { getActivityApi, deleteActivityApi } from '../../api/activity'
 import Pagination from '../../components/Pagination.vue'
 import BaseLoading from '../../components/BaseLoading.vue'
+import ActivityFormDialog, { type ActivityItem } from './components/ActivityFormDialog.vue'
+import ParticipantsDialog from './components/ParticipantsDialog.vue'
 
 interface Activity {
   id: number
@@ -139,6 +158,7 @@ interface Participant {
 const loading = ref(false)
 const activities = ref<Activity[]>([])
 const participants = ref<Participant[]>([])
+const activities = ref<ActivityItem[]>([])
 const currentPage = ref(1)
 const pageSize = ref(10)
 const totalActivities = ref(0)
@@ -153,6 +173,11 @@ const dialogTitle = computed(() => dialogMode.value === 'add' ? '发布志愿活
 const activityForm = ref<Activity>({
   id:0, title:'', description:'', time: new Date().toISOString().slice(0,19).replace('T',' '),
   volunteerHours:1, status:'pending', author:'管理员'
+const formDialogRef = ref<InstanceType<typeof ActivityFormDialog>>()
+const participantsDialogRef = ref<InstanceType<typeof ParticipantsDialog>>()
+
+const paginatedActivities = computed(() => {
+  return activities.value.slice((currentPage.value - 1) * pageSize.value, currentPage.value * pageSize.value)
 })
 const formRules: FormRules = {
   title: [{ required: true, message: '活动标题不能为空', trigger: 'blur' }],
@@ -162,6 +187,7 @@ const formRules: FormRules = {
   status: [{ required: true, message: '活动状态不能为空', trigger: 'blur' }]
 }
 const paginatedActivities = computed(() => activities.value.slice((currentPage.value-1)*pageSize.value, currentPage.value*pageSize.value))
+
 const statusCount = computed(() => {
   const count = { pending: 0, active: 0, completed: 0 }
   activities.value.forEach((item) => {
@@ -174,12 +200,14 @@ const statusCount = computed(() => {
 })
 
 const statusText = (status: Activity['status'] | string) => {
+const statusText = (status: ActivityItem['status'] | string) => {
   if (status === 'active') return '进行中'
   if (status === 'completed') return '已结束'
   return '未开始'
 }
 
 const statusTagType = (status: Activity['status'] | string): '' | 'success' | 'info' | 'warning' | 'danger' => {
+const statusTagType = (status: ActivityItem['status'] | string): '' | 'success' | 'info' | 'warning' | 'danger' => {
   if (status === 'active') return 'success'
   if (status === 'completed') return 'info'
   return 'warning'
@@ -223,6 +251,11 @@ const fetchActivities = async () => {
     totalActivities.value = res.data.data?.total || 0
   } catch (e) { ElMessage.error('获取活动失败') }
   finally { loading.value = false }
+  } catch (e) {
+    ElMessage.error('获取活动列表失败')
+  } finally {
+    loading.value = false
+  }
 }
 const fetchParticipants = async (id: number) => {
   try {
@@ -259,19 +292,25 @@ const submitActivity = () => {
     finally { loading.value = false }
   })
 }
+
 const deleteActivity = async (id: number) => {
   try {
     await ElMessageBox.confirm('确定删除？','提示',{type:'warning'})
+    await ElMessageBox.confirm('确定删除该志愿活动？', '提示', { type: 'warning' })
     await deleteActivityApi(id)
     ElMessage.success('删除成功')
     fetchActivities()
   } catch (error) { if (error !== 'cancel') ElMessage.info('已取消') }
+  } catch (error) {
+    if (error !== 'cancel') ElMessage.info('已取消')
+  }
 }
 const viewParticipants = (activity: Activity) => {
   currentActivity.value = { ...activity }
   fetchParticipants(activity.id)
   participantsVisible.value = true
 }
+
 onMounted(() => fetchActivities())
 watch([currentPage, pageSize], () => fetchActivities())
 </script>
@@ -290,12 +329,16 @@ watch([currentPage, pageSize], () => fetchActivities())
   border-radius: 14px;
   overflow: hidden;
   border: 1px solid #e9edf3;
+  border-radius: 12px;
+  border: 1px solid #ebeef5;
+  background-color: #fff;
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
   gap: 16px;
 }
 
@@ -308,13 +351,20 @@ watch([currentPage, pageSize], () => fetchActivities())
 .title {
   margin: 0;
   color: #1f2d3d;
+.header-main .title {
   font-size: 20px;
   font-weight: 700;
   padding-left: 10px;
   border-left: 4px solid #409eff;
+  font-weight: 600;
+  color: #303133;
+  margin: 0 0 8px 0;
 }
 
 .sub-title {
+.header-main .sub-title {
+  font-size: 14px;
+  color: #909399;
   margin: 0;
   font-size: 13px;
   color: #8a94a6;
@@ -325,6 +375,9 @@ watch([currentPage, pageSize], () => fetchActivities())
   grid-template-columns: repeat(4, minmax(120px, 1fr));
   gap: 12px;
   margin-bottom: 18px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
 .overview-item {
@@ -332,25 +385,36 @@ watch([currentPage, pageSize], () => fetchActivities())
   border-radius: 10px;
   background: linear-gradient(180deg, #f8fbff 0%, #f2f6fc 100%);
   border: 1px solid #e8edf5;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  align-items: center;
 }
 
 .overview-label {
   font-size: 13px;
   color: #7b8794;
+  font-size: 14px;
+  color: #606266;
+  margin-bottom: 8px;
 }
 
 .overview-value {
   font-size: 22px;
   font-weight: 700;
   color: #1f2d3d;
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
 }
 
 .overview-value.pending { color: #e6a23c; }
 .overview-value.active { color: #67c23a; }
 .overview-value.completed { color: #409eff; }
+.overview-value.completed { color: #909399; }
 
 .header-actions {
   display: flex;
@@ -360,8 +424,11 @@ watch([currentPage, pageSize], () => fetchActivities())
 .activity-list {
   display: flex;
   flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
   gap: 16px;
   margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
 .activity-card {
@@ -369,6 +436,10 @@ watch([currentPage, pageSize], () => fetchActivities())
   margin-bottom: 16px;
   border: 1px solid #e9edf3;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s;
 }
 
 .activity-card:hover {
@@ -378,6 +449,11 @@ watch([currentPage, pageSize], () => fetchActivities())
 
 .activity-card :deep(.el-card__body) {
   padding: 18px;
+.activity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
 }
 
 .activity-card {
@@ -459,9 +535,55 @@ watch([currentPage, pageSize], () => fetchActivities())
     gap: 8px;
     flex-wrap: wrap;
   }
+.activity-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+  flex: 1;
 }
 
+.activity-time {
+  font-size: 12px;
+  color: #909399;
+}
+.activity-description {
+  font-size: 14px;
+  color: #606266;
+  margin: 0 0 16px 0;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.activity-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.activity-duration {
+  font-size: 13px;
+  color: #606266;
+}
+.activity-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid #ebeef5;
+}
+.activity-author {
+  font-size: 13px;
+  color: #909399;
+}
+.activity-actions {
+  display: flex;
+  gap: 8px;
+}
 .empty-state {
+  grid-column: 1 / -1;
   padding: 40px 0;
   text-align: center;
 }
@@ -469,6 +591,9 @@ watch([currentPage, pageSize], () => fetchActivities())
 .pagination-container {
   margin-top: 20px;
   text-align: right;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
 }
 
 .participants-list {
@@ -484,12 +609,15 @@ watch([currentPage, pageSize], () => fetchActivities())
 
   .overview-grid {
     grid-template-columns: repeat(2, minmax(120px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
   }
   
   .header {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
+  .activity-list {
+    grid-template-columns: 1fr;
   }
   
   .title {
