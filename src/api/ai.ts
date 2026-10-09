@@ -11,9 +11,16 @@ export interface ChatStreamParams {
 }
 
 export interface ChatStreamEvent {
-  type: 'token' | 'error' | string
+  type: 'token' | 'done' | 'context' | 'confirm_dialog' | 'error' | string
   content?: string
   message?: string
+  fields?: Record<string, string>
+  prompt?: string
+}
+
+export interface ConfirmParams {
+  session_id: string
+  action: 'confirm' | 'cancel'
 }
 
 /**
@@ -52,6 +59,30 @@ export function chatStreamApi(params: ChatStreamParams, customToken?: string): P
   }
 
   const requestUrl = getAiUrl('chat/stream')
+
+  return fetch(requestUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(params),
+  })
+}
+
+/**
+ * 弹窗确认/取消登记接口 (SSE)
+ * 用户在弹窗中点击"确认提交"或"取消"后调用，后端执行真正写入或取消并流式返回结果
+ */
+export function confirmApi(params: ConfirmParams, customToken?: string): Promise<Response> {
+  const userStore = useUserStore()
+  const token = customToken || userStore.userInfo?.token
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  const requestUrl = getAiUrl('chat/confirm')
 
   return fetch(requestUrl, {
     method: 'POST',

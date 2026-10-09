@@ -45,7 +45,7 @@
           style="width: 100%;"
         />
       </el-form-item>
-      <el-form-item label="离世时间" prop="deadTime">
+      <el-form-item label="离世时间" prop="deadTime" v-if="dogForm.healthStatus === 'dead'">
         <el-date-picker
           v-model="dogForm.deadTime"
           type="datetime"
@@ -84,7 +84,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { ElMessageBox, ElMessage, ElNotification } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -155,6 +155,17 @@ const formRules = ref<FormRules>({
   ]
 })
 
+// 当健康状态不是已离世时，清空离世时间并清除表单校验
+watch(
+  () => dogForm.value.healthStatus,
+  (newStatus) => {
+    if (newStatus !== 'dead') {
+      dogForm.value.deadTime = ''
+      formRef.value?.clearValidate('deadTime')
+    }
+  }
+)
+
 const resetDogForm = () => {
   dogForm.value = {
     id: 0,
@@ -218,6 +229,9 @@ const submitDogInfo = () => {
     submitLoading.value = true
     try {
       const submitData = { ...dogForm.value }
+      if (submitData.healthStatus !== 'dead') {
+        submitData.deadTime = ''
+      }
       const res = dialogMode.value === 'add'
         ? await createDogApi(submitData)
         : await updateDogApi(editId.value!, submitData)
