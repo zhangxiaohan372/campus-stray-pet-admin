@@ -29,6 +29,24 @@
             v-if="msg.role === 'ai' && isStreaming && i === messages.length - 1"
             class="cursor"
           >|</span>
+
+          <!-- 待确认登记卡片操作栏 -->
+          <div v-if="msg.isConfirm" class="confirm-actions">
+            <template v-if="!msg.confirmedAction">
+              <button class="confirm-btn action-check" @click="$emit('open-confirm')">
+                核对弹窗
+              </button>
+              <button class="confirm-btn action-submit" :disabled="isLoading" @click="$emit('confirm-action', 'confirm')">
+                确认提交
+              </button>
+              <button class="confirm-btn action-cancel" :disabled="isLoading" @click="$emit('confirm-action', 'cancel')">
+                取消
+              </button>
+            </template>
+            <span v-else class="action-status-tag">
+              已{{ msg.confirmedAction === 'confirm' ? '确认提交' : '取消登记' }}
+            </span>
+          </div>
         </div>
         <div class="msg-time">{{ msg.time }}</div>
       </div>
@@ -58,6 +76,8 @@ defineProps<{
 
 defineEmits<{
   (e: 'select-quick', question: string): void
+  (e: 'open-confirm'): void
+  (e: 'confirm-action', action: 'confirm' | 'cancel'): void
 }>()
 
 const bodyRef = ref<HTMLElement | null>(null)
@@ -214,6 +234,70 @@ defineExpose({
 @keyframes bounce {
   0%, 80%, 100% { transform: scale(1); opacity: 0.5; }
   40% { transform: scale(1.3); opacity: 1; }
+}
+
+/* 待确认登记卡片操作栏 */
+.confirm-actions {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding-top: 8px;
+  border-top: 1px dashed #e4e7ed;
+}
+
+.confirm-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.confirm-btn.action-check {
+  background: #f0f7ff;
+  color: var(--primary, #409eff);
+  border-color: #d9ecff;
+}
+.confirm-btn.action-check:hover {
+  background: var(--primary, #409eff);
+  color: #fff;
+}
+
+.confirm-btn.action-submit {
+  background: #67c23a;
+  color: #fff;
+  border-color: #67c23a;
+}
+.confirm-btn.action-submit:hover:not(:disabled) {
+  background: #85ce61;
+}
+
+.confirm-btn.action-cancel {
+  background: #f4f4f5;
+  color: #909399;
+  border-color: #dcdfe6;
+}
+.confirm-btn.action-cancel:hover:not(:disabled) {
+  background: #f56c6c;
+  color: #fff;
+  border-color: #f56c6c;
+}
+
+.confirm-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.action-status-tag {
+  font-size: 12px;
+  color: #909399;
+  background: #f4f4f5;
+  padding: 3px 8px;
+  border-radius: 4px;
 }
 </style>
 

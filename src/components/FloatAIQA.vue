@@ -39,6 +39,8 @@
           :is-streaming="isStreaming"
           :quick-list="quickList"
           @select-quick="handleQuickSelect"
+          @open-confirm="confirmDialog.visible = true"
+          @confirm-action="handleConfirm"
         />
 
         <!-- 3. 底部输入区 -->
@@ -49,6 +51,16 @@
         />
       </div>
     </transition>
+
+    <!-- 4. 宠物登记核对弹窗 -->
+    <ConfirmDialog
+      v-model:visible="confirmDialog.visible"
+      :fields="confirmDialog.fields"
+      :prompt="confirmDialog.prompt"
+      :loading="isLoading"
+      @confirm="handleConfirm('confirm')"
+      @cancel="handleConfirm('cancel')"
+    />
   </div>
 </template>
 
@@ -56,11 +68,12 @@
 import { ref, computed, nextTick } from 'vue'
 import { useAiChat, useDraggable } from '../composables'
 import ChatHeader from './ai-chat/ChatHeader.vue'
-import ChatChatMessageList from './ai-chat/ChatMessageList.vue'
+import ChatMessageList from './ai-chat/ChatMessageList.vue'
 import ChatInput from './ai-chat/ChatInput.vue'
+import ConfirmDialog from './ai-chat/ConfirmDialog.vue'
 
 const isOpen = ref(false)
-const messageListRef = ref<InstanceType<typeof ChatChatMessageList> | null>(null)
+const messageListRef = ref<InstanceType<typeof ChatMessageList> | null>(null)
 const inputRef = ref<InstanceType<typeof ChatInput> | null>(null)
 
 const quickList = ['系统有哪些功能？', '怎么添加流浪动物？', '如何管理志愿活动？']
@@ -80,7 +93,15 @@ const windowStyle = computed(() => {
 
 // 关联消息列表的滚动容器 DOM 给 Hook
 const scrollContainer = computed(() => messageListRef.value?.containerEl || null)
-const { messages, isLoading, isStreaming, sendMessage, clearMessages } = useAiChat(scrollContainer)
+const {
+  messages,
+  isLoading,
+  isStreaming,
+  confirmDialog,
+  handleConfirm,
+  sendMessage,
+  clearMessages
+} = useAiChat(scrollContainer)
 
 const openChat = () => {
   isOpen.value = true

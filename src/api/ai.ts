@@ -47,7 +47,11 @@ export function getAiUrl(path: string): string {
  * 发送 AI 对话流式请求 (SSE)
  * 自动从 userStore 读取 Token 注入 Authorization 请求头，支持跨服务鉴权
  */
-export function chatStreamApi(params: ChatStreamParams, customToken?: string): Promise<Response> {
+export function chatStreamApi(
+  params: ChatStreamParams,
+  customToken?: string,
+  signal?: AbortSignal
+): Promise<Response> {
   const userStore = useUserStore()
   const token = customToken || userStore.userInfo?.token
 
@@ -64,6 +68,7 @@ export function chatStreamApi(params: ChatStreamParams, customToken?: string): P
     method: 'POST',
     headers,
     body: JSON.stringify(params),
+    signal,
   })
 }
 
@@ -71,7 +76,11 @@ export function chatStreamApi(params: ChatStreamParams, customToken?: string): P
  * 弹窗确认/取消登记接口 (SSE)
  * 用户在弹窗中点击"确认提交"或"取消"后调用，后端执行真正写入或取消并流式返回结果
  */
-export function confirmApi(params: ConfirmParams, customToken?: string): Promise<Response> {
+export function confirmApi(
+  params: ConfirmParams,
+  customToken?: string,
+  signal?: AbortSignal
+): Promise<Response> {
   const userStore = useUserStore()
   const token = customToken || userStore.userInfo?.token
 
@@ -88,6 +97,7 @@ export function confirmApi(params: ConfirmParams, customToken?: string): Promise
     method: 'POST',
     headers,
     body: JSON.stringify(params),
+    signal,
   })
 }
 
