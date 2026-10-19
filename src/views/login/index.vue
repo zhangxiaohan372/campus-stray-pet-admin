@@ -19,6 +19,7 @@
             placeholder="请输入管理员名称"
             :prefix-icon="User"
             size="large"
+            @keyup.enter="handleLogin"
           />
         </el-form-item>
         <el-form-item prop="password">
@@ -29,11 +30,19 @@
             :prefix-icon="Lock"
             size="large"
             show-password
+            @keyup.enter="handleLogin"
           />
         </el-form-item>
         <el-form-item class="login-btn-group">
-          <el-button type="primary" @click="handleLogin" size="large" class="login-btn">
-            登录
+          <el-button
+            type="primary"
+            :loading="loading"
+            :disabled="loading"
+            @click="handleLogin"
+            size="large"
+            class="login-btn"
+          >
+            {{ loading ? '正在登录...' : '登录' }}
           </el-button>
         </el-form-item>
         <div class="login-tip">
@@ -56,6 +65,7 @@ const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const elFormRef = ref<InstanceType<typeof ElForm>>()
+const loading = ref(false)
 const loginForm = ref({
   name: '',
   password: ''
@@ -69,6 +79,9 @@ const rules = ref({
 
 // 登录处理函数
 const handleLogin = async () => {
+  // 防重拦截
+  if (loading.value) return
+
   // 1. 表单校验
   try {
     await elFormRef.value?.validate()
@@ -78,6 +91,7 @@ const handleLogin = async () => {
   }
 
   // 2. 调用登录接口
+  loading.value = true
   try {
     const res = await loginApi({
       name: loginForm.value.name,
@@ -99,6 +113,8 @@ const handleLogin = async () => {
   } catch (err) {
     ElMessage.error('网络异常，请稍后重试')
     console.error('登录报错：', err)
+  } finally {
+    loading.value = false
   }
 }
 </script>
@@ -194,6 +210,12 @@ const handleLogin = async () => {
 
 .login-btn:hover {
   opacity: 0.9;
+}
+
+.login-btn.is-disabled,
+.login-btn.is-loading {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 

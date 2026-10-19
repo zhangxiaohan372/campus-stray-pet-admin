@@ -76,7 +76,12 @@ const isOpen = ref(false)
 const messageListRef = ref<InstanceType<typeof ChatMessageList> | null>(null)
 const inputRef = ref<InstanceType<typeof ChatInput> | null>(null)
 
-const quickList = ['系统有哪些功能？', '怎么添加流浪动物？', '如何管理志愿活动？']
+const quickList = [
+  '在校园里发现受伤的猫咪该怎么处理？',
+  '给校园流浪猫狗喂食有哪些禁忌食物？',
+  '帮我查一下明向校区图书馆附近有哪些猫咪？',
+  '我想登记一只新发现的流浪猫，需要什么信息？'
+]
 
 // 拖拽控制（弹窗默认 360 x 540，屏幕边距 24px）
 const { pos, isDragging, initDefaultPosition, onPointerDown } = useDraggable(360, 540, 24)
