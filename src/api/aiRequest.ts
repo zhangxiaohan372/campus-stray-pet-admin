@@ -3,14 +3,15 @@
  * 独立连接 AI Agent 后端（默认端口 8000），提供长超时时间与统一鉴权拦截
  */
 import axios from 'axios'
-import { useUserStore } from '../stores/user'
+import { getAuthToken } from '../stores/user'
 
 const getAiBaseUrl = (): string => {
   const base = import.meta.env.VITE_AI_BASE_URL
   if (base) {
     return base.replace(/\/+$/, '')
   }
-  return '/agent-api'
+  // 留空以走 Vite 本地代理分流（/api/chat -> 8000）
+  return ''
 }
 
 const aiService = axios.create({
@@ -21,10 +22,9 @@ const aiService = axios.create({
 // 请求拦截器：自动注入当前已登录用户的 Bearer Token
 aiService.interceptors.request.use(
   (config) => {
-    const userStore = useUserStore()
-    const token = userStore.userInfo?.token
+    const token = getAuthToken()
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+      config.headers.Authorization = token.startsWith('Bearer ') ? token : `Bearer ${token}`
     }
     return config
   },

@@ -1,7 +1,7 @@
 /**
  * AI 问答与智能助手相关接口
  */
-import { useUserStore } from '../stores/user'
+import { getAuthToken } from '../stores/user'
 import aiService from './aiRequest'
 
 export interface ChatStreamParams {
@@ -48,43 +48,52 @@ export interface ConfirmParams {
 
 /**
  * 动态组装 AI 服务的完整请求路径
- * 兼容 Vite 本地代理 (/agent-api) 与生产/外网直连地址 (如 http://47.93.227.166:8000)
+ * 默认走 Vite 本地代理分流（/api/chat -> 8000），同时也兼容直连配置 (如 http://127.0.0.1:8000)
  */
 export function getAiUrl(path: string): string {
-  const base = (import.meta.env.VITE_AI_BASE_URL || '/agent-api').replace(/\/+$/, '')
+  const base = (import.meta.env.VITE_AI_BASE_URL || '').replace(/\/+$/, '')
   const cleanPath = path.replace(/^\/+/, '')
 
-  // 若使用开发代理 /agent-api，vite 会自动 rewrite 映射为 /api
-  if (base.startsWith('/agent-api')) {
-    return `${base}/${cleanPath.replace(/^api\//, '')}`
+  // 保证路径带有 api/ 前缀，匹配 Vite 代理与 FastAPI 路由
+  const fullApiPath = cleanPath.startsWith('api/') ? cleanPath : `api/${cleanPath}`
+
+  if (!base) {
+    // 默认相对路径，触发 Vite 反向代理（/api/chat -> 8000）
+    return `/${fullApiPath}`
   }
 
-  // 若直连外网或真实域名，确保路由带有 /api 前缀（FastAPI 挂载于 /api）
-  if (!cleanPath.startsWith('api/') && !base.endsWith('/api')) {
-    return `${base}/api/${cleanPath}`
+  // 若配置了自定义 Base URL (例如 http://127.0.0.1:8000 或带有 /api)
+  if (base.endsWith('/api')) {
+    return `${base}/${fullApiPath.replace(/^api\//, '')}`
   }
-  return `${base}/${cleanPath}`
+  return `${base}/${fullApiPath}`
+}
+
+/**
+ * 生成统一的鉴权请求头
+ * 自动注入当前登录用户的真实 Token (Bearer Token 规范)
+ */
+export function getAuthHeaders(customToken?: string): Record<string, string> {
+  const token = customToken || getAuthToken()
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+  if (token) {
+    headers['Authorization'] = token.startsWith('Bearer ') ? token : `Bearer ${token}`
+  }
+  return headers
 }
 
 /**
  * 发送 AI 对话流式请求 (SSE)
- * 自动从 userStore 读取 Token 注入 Authorization 请求头，支持跨服务鉴权
+ * 自动从 userStore / localStorage 读取 Token 注入 Authorization 请求头，支持跨服务鉴权
  */
 export function chatStreamApi(
   params: ChatStreamParams,
   customToken?: string,
   signal?: AbortSignal
 ): Promise<Response> {
-  const userStore = useUserStore()
-  const token = customToken || userStore.userInfo?.token
-
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-
+  const headers = getAuthHeaders(customToken)
   const requestUrl = getAiUrl('chat/stream')
 
   return fetch(requestUrl, {
@@ -104,16 +113,7 @@ export function confirmApi(
   customToken?: string,
   signal?: AbortSignal
 ): Promise<Response> {
-  const userStore = useUserStore()
-  const token = customToken || userStore.userInfo?.token
-
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-
+  const headers = getAuthHeaders(customToken)
   const requestUrl = getAiUrl('chat/confirm')
 
   return fetch(requestUrl, {

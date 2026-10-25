@@ -66,11 +66,11 @@
           >
             <!-- 状态图标 -->
             <div class="task-status-icon">
-              <!-- running: 蓝色旋转加载环 -->
-              <span v-if="task.status === 'running'" class="spinner-ring" title="执行中..."></span>
+              <!-- running: 蓝色旋转加载环（仅在 isStreaming 为 true 时旋转，生成结束后若仍为 running 则静止或视为完成） -->
+              <span v-if="task.status === 'running' && isStreaming" class="spinner-ring" title="执行中..."></span>
 
-              <!-- completed: 绿色圆圈对勾 -->
-              <span v-else-if="task.status === 'completed'" class="icon-completed" title="已完成">
+              <!-- completed / 生成结束后的完成态: 绿色圆圈对勾 -->
+              <span v-else-if="task.status === 'completed' || (task.status === 'running' && !isStreaming)" class="icon-completed" title="已完成">
                 <svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor">
                   <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
                 </svg>
@@ -117,7 +117,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { TaskPlan } from '../../api/ai'
 
 const props = defineProps<{
@@ -127,6 +127,16 @@ const props = defineProps<{
 
 // 控制面板整体展开/收起
 const isCollapsed = ref(false)
+
+// 当流式回答结束时，自动折叠收起任务看板，避免大块遮挡下方的 AI 正文回复
+watch(
+  () => props.isStreaming,
+  (streaming, prevStreaming) => {
+    if (prevStreaming && !streaming) {
+      isCollapsed.value = true
+    }
+  }
+)
 
 // 控制具体每个任务的执行产物快照展开
 const expandedResults = ref<Record<number, boolean>>({})
@@ -143,10 +153,17 @@ const toggleResult = (taskId: number) => {
 const totalCount = computed(() => props.plan?.tasks?.length || 0)
 
 const completedCount = computed(() => {
+  // 如果当前对话流已经结束，未报错的任务均按已完成统计
+  if (!props.isStreaming) {
+    return props.plan?.tasks?.filter(t => t.status !== 'failed').length || 0
+  }
   return props.plan?.tasks?.filter(t => t.status === 'completed').length || 0
 })
 
 const isAllCompleted = computed(() => {
+  if (!props.isStreaming && !hasFailed.value) {
+    return totalCount.value > 0
+  }
   return totalCount.value > 0 && completedCount.value === totalCount.value
 })
 
@@ -155,6 +172,8 @@ const hasFailed = computed(() => {
 })
 
 const isRunning = computed(() => {
+  // 仅在正在流式生成且有正在执行的任务时才显示“执行中”
+  if (props.isStreaming === false) return false
   return props.plan?.tasks?.some(t => t.status === 'running') || false
 })
 

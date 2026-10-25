@@ -1,5 +1,6 @@
 import { ref, nextTick, type Ref } from 'vue'
-import { useUserStore } from '../../../stores/user'
+import { ElMessage } from 'element-plus'
+import { getAuthToken } from '../../../stores/user'
 import {
   chatStreamApi,
   confirmApi,
@@ -28,12 +29,25 @@ export interface ConfirmDialogState {
   prompt: string
 }
 
+/**
+ * 生成唯一会话 ID (兼容非安全上下文环境)
+ */
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
+
 export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
-  const userStore = useUserStore()
   const messages = ref<Msg[]>([])
   const isLoading = ref(false)
   const isStreaming = ref(false)
-  const sessionId = ref(crypto.randomUUID())
+  const sessionId = ref(generateUUID())
   const confirmDialog = ref<ConfirmDialogState>({
     visible: false,
     fields: {},
@@ -67,48 +81,97 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
   const clearMessages = () => {
     if (isLoading.value) return
     messages.value = []
-    sessionId.value = crypto.randomUUID()
+    sessionId.value = generateUUID()
     confirmDialog.value = { visible: false, fields: {}, prompt: '' }
   }
 
-  // 通用 SSE 读取器
+  /**
+   * 通用 Server-Sent Events (SSE) 流式解析器
+   * 1. 严格过滤心跳/注释行 (: ping, : keep-alive 等)
+   * 2. 规范拼接多行 data 载荷，支持 [DONE] 终止标志
+   * 3. 安全解析各 type 事件，支持 onEvent 返回 true 提前主动终止流读取
+   */
   const readSseStream = async (
     response: Response,
-    onEvent: (event: ChatStreamEvent) => void
+    onEvent: (event: ChatStreamEvent) => boolean | void
   ) => {
     if (!response.body) throw new Error('浏览器无法读取流式响应')
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
+    let isFinished = false
 
     const parseBlock = (raw: string) => {
-      const data = raw
-        .split('\n')
-        .filter(line => line.startsWith('data:'))
-        .map(line => line.slice(5).trimStart())
-        .join('\n')
-      if (!data) return
+      if (isFinished || !raw.trim()) return
+
+      const lines = raw.split(/\r?\n/)
+      const dataLines: string[] = []
+
+      for (const line of lines) {
+        // 忽略心跳与注释行（SSE 规范中以冒号开头的行）
+        if (line.startsWith(':') || !line.trim()) {
+          continue
+        }
+        if (line.startsWith('data:')) {
+          let value = line.slice(5)
+          // SSE 规范：若 data: 后面有前置空格，剥离首个空格
+          if (value.startsWith(' ')) {
+            value = value.slice(1)
+          }
+          dataLines.push(value)
+        }
+      }
+
+      if (dataLines.length === 0) return
+
+      const payload = dataLines.join('\n')
+
+      // 支持 [DONE] 文本标志
+      if (payload.trim() === '[DONE]') {
+        const stop = onEvent({ type: 'done' })
+        if (stop === true) isFinished = true
+        return
+      }
+
       try {
-        const event = JSON.parse(data) as ChatStreamEvent
-        onEvent(event)
+        const event = JSON.parse(payload) as ChatStreamEvent
+        const stop = onEvent(event)
+        if (stop === true) {
+          isFinished = true
+        }
       } catch (err) {
-        console.warn('SSE 解析异常:', err, data)
+        console.warn('SSE JSON 解析异常:', err, payload)
       }
     }
 
-    while (true) {
-      const { done, value } = await reader.read()
-      buffer += done ? decoder.decode() : decoder.decode(value, { stream: true })
-      buffer = buffer.replace(/\r\n/g, '\n')
-      let boundary = buffer.indexOf('\n\n')
-      while (boundary !== -1) {
-        parseBlock(buffer.slice(0, boundary))
-        buffer = buffer.slice(boundary + 2)
-        boundary = buffer.indexOf('\n\n')
+    try {
+      while (!isFinished) {
+        const { done, value } = await reader.read()
+        if (done) {
+          buffer += decoder.decode()
+          if (buffer.trim()) {
+            parseBlock(buffer)
+          }
+          break
+        }
+
+        buffer += decoder.decode(value, { stream: true })
+        // 标准 SSE 事件通过连续双换行 (\n\n 或 \r\n\r\n) 切分数据块
+        buffer = buffer.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+        let boundary = buffer.indexOf('\n\n')
+        while (boundary !== -1) {
+          const block = buffer.slice(0, boundary)
+          buffer = buffer.slice(boundary + 2)
+          parseBlock(block)
+          if (isFinished) break
+          boundary = buffer.indexOf('\n\n')
+        }
       }
-      if (done) {
-        if (buffer.trim()) parseBlock(buffer)
-        break
+    } finally {
+      try {
+        reader.releaseLock()
+      } catch {
+        // ignore
       }
     }
   }
@@ -121,7 +184,7 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
     scrollBottom()
     isLoading.value = true
 
-    const token = userStore.userInfo?.token
+    const token = getAuthToken()
     if (!token) {
       messages.value.push({ role: 'ai', content: '请先登录后使用 AI 助手。', time: now() })
       isLoading.value = false
@@ -147,8 +210,8 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
       isStreaming.value = true
       const msg = getOrCreateAnswer()
       msg.plan = {
-        summary: planData.summary,
-        tasks: planData.tasks.map(t => ({ ...t })),
+        summary: planData.summary || '任务执行规划',
+        tasks: Array.isArray(planData.tasks) ? planData.tasks.map(t => ({ ...t })) : [],
       }
       scrollBottom()
     }
@@ -164,12 +227,24 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
             ...taskData,
           }
         } else {
-          msg.plan.tasks.push({ ...taskData })
+          msg.plan.tasks.push({
+            id: taskData.id,
+            title: taskData.title || `任务 #${taskData.id}`,
+            status: taskData.status || 'running',
+            result: taskData.result,
+            type: taskData.type,
+          })
         }
       } else {
         msg.plan = {
           summary: '任务执行规划',
-          tasks: [{ ...taskData }],
+          tasks: [{
+            id: taskData.id,
+            title: taskData.title || `任务 #${taskData.id}`,
+            status: taskData.status || 'running',
+            result: taskData.result,
+            type: taskData.type,
+          }],
         }
       }
       scrollBottom()
@@ -182,7 +257,14 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
         message: trimmed,
         session_id: sessionId.value,
       }, token, controller.signal)
-      if (!response.ok) throw new Error(`AI 请求失败（HTTP ${response.status}）`)
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          ElMessage.error('登录状态已失效，请重新登录')
+          throw new Error('登录状态已失效，请重新登录业务系统后再试')
+        }
+        throw new Error(`AI 请求失败（HTTP ${response.status}）`)
+      }
 
       await readSseStream(response, (event) => {
         if (event.type === 'error') {
@@ -194,7 +276,7 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
         if (event.type === 'task_updated' && event.task) {
           handleTaskUpdated(event.task)
         }
-        if (event.type === 'token' && event.content) {
+        if (event.type === 'token' && typeof event.content === 'string') {
           isStreaming.value = true
           appendAnswer(event.content)
         }
@@ -214,6 +296,19 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
             prompt: promptText,
           }
         }
+        if (event.type === 'done') {
+          isStreaming.value = false
+          isLoading.value = false
+          // 兜底自愈：若后端未及时推送 task_updated，而会话已收到 done 正常结束，自动将规划任务标记为已完成
+          if (answer?.plan?.tasks) {
+            answer.plan.tasks.forEach(t => {
+              if (t.status === 'running' || t.status === 'pending') {
+                t.status = 'completed'
+              }
+            })
+          }
+          return true
+        }
       })
 
       if (!answer) appendAnswer('AI 没有返回内容，请稍后重试。')
@@ -224,6 +319,14 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
       clearTimeout(timeoutId)
       isLoading.value = false
       isStreaming.value = false
+      // 保证流结束时任务状态不悬停在 running/pending
+      if (answer?.plan?.tasks) {
+        answer.plan.tasks.forEach(t => {
+          if (t.status === 'running') {
+            t.status = 'completed'
+          }
+        })
+      }
     }
   }
 
@@ -243,7 +346,7 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
     scrollBottom()
     isLoading.value = true
 
-    const token = userStore.userInfo?.token
+    const token = getAuthToken()
     if (!token) {
       messages.value.push({ role: 'ai', content: '请先登录后操作。', time: now() })
       isLoading.value = false
@@ -269,8 +372,8 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
       isStreaming.value = true
       const msg = getOrCreateAnswer()
       msg.plan = {
-        summary: planData.summary,
-        tasks: planData.tasks.map(t => ({ ...t })),
+        summary: planData.summary || '任务执行规划',
+        tasks: Array.isArray(planData.tasks) ? planData.tasks.map(t => ({ ...t })) : [],
       }
       scrollBottom()
     }
@@ -286,12 +389,24 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
             ...taskData,
           }
         } else {
-          msg.plan.tasks.push({ ...taskData })
+          msg.plan.tasks.push({
+            id: taskData.id,
+            title: taskData.title || `任务 #${taskData.id}`,
+            status: taskData.status || 'running',
+            result: taskData.result,
+            type: taskData.type,
+          })
         }
       } else {
         msg.plan = {
           summary: '任务执行规划',
-          tasks: [{ ...taskData }],
+          tasks: [{
+            id: taskData.id,
+            title: taskData.title || `任务 #${taskData.id}`,
+            status: taskData.status || 'running',
+            result: taskData.result,
+            type: taskData.type,
+          }],
         }
       }
       scrollBottom()
@@ -304,7 +419,14 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
         session_id: sessionId.value,
         action,
       }, token, controller.signal)
-      if (!response.ok) throw new Error(`操作请求失败（HTTP ${response.status}）`)
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          ElMessage.error('登录状态已失效，请重新登录')
+          throw new Error('登录状态已失效，请重新登录业务系统后再试')
+        }
+        throw new Error(`操作请求失败（HTTP ${response.status}）`)
+      }
 
       await readSseStream(response, (event) => {
         if (event.type === 'error') {
@@ -316,9 +438,36 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
         if (event.type === 'task_updated' && event.task) {
           handleTaskUpdated(event.task)
         }
-        if (event.type === 'token' && event.content) {
+        if (event.type === 'token' && typeof event.content === 'string') {
           isStreaming.value = true
           appendAnswer(event.content)
+        }
+        if (event.type === 'confirm_dialog') {
+          const promptText = event.prompt || '请核对拟提交的登记信息并确认：'
+          appendAnswer(promptText)
+
+          const msg = getOrCreateAnswer()
+          msg.isConfirm = true
+          msg.fields = event.fields || {}
+
+          confirmDialog.value = {
+            visible: true,
+            fields: event.fields || {},
+            prompt: promptText,
+          }
+        }
+        if (event.type === 'done') {
+          isStreaming.value = false
+          isLoading.value = false
+          // 兜底自愈：若后端未及时推送 task_updated，而确认流程已收到 done 结束，自动将规划任务标记为已完成
+          if (answer?.plan?.tasks) {
+            answer.plan.tasks.forEach(t => {
+              if (t.status === 'running' || t.status === 'pending') {
+                t.status = 'completed'
+              }
+            })
+          }
+          return true
         }
       })
 
@@ -332,6 +481,13 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
       clearTimeout(timeoutId)
       isLoading.value = false
       isStreaming.value = false
+      if (answer?.plan?.tasks) {
+        answer.plan.tasks.forEach(t => {
+          if (t.status === 'running') {
+            t.status = 'completed'
+          }
+        })
+      }
     }
   }
 
@@ -347,5 +503,3 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
     scrollBottom,
   }
 }
-
-

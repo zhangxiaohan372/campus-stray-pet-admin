@@ -99,6 +99,13 @@ const handleLogin = async () => {
     })
 
     if (res.data.success) {
+      if (res.data.data?.token) {
+        try {
+          localStorage.setItem('token', res.data.data.token)
+        } catch {
+          // ignore
+        }
+      }
       userStore.login(res.data.data) 
       ElMessage.success('登录成功！')
       

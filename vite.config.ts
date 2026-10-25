@@ -15,19 +15,32 @@ export default defineConfig({
     }),
   ],
   server: {
-    port:8888,
+    port: 5174,
     proxy: {
-      '/agent-api': {
+      // 1. AI 对话与确认接口 -> 转发给本地 Agent 后端 (8000)
+      '/api/chat': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/agent-api/, '/api'),
+      },
+      // 2. 业务接口（如登录 /api/auth、宠物图鉴 /api/app 等） -> 转发给线上业务后端 (47.93.227.166:3001)
+      '/api': {
+        target: 'http://47.93.227.166:3001',
+        changeOrigin: true,
+      },
+    },
+  },
+  preview: {
+    port: 5174,
+    proxy: {
+      '/api/chat': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
       },
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'http://47.93.227.166:3001',
         changeOrigin: true,
-        secure: false,
-      }
-    }
+      },
+    },
   },
   build: {
     rollupOptions: {

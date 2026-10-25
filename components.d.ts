@@ -56,6 +56,7 @@ declare module 'vue' {
     SearchFilterBar: typeof import('./src/components/SearchFilterBar.vue')['default']
     StatusTag: typeof import('./src/components/StatusTag.vue')['default']
     TableCard: typeof import('./src/components/TableCard.vue')['default']
+    TaskPlanBoard: typeof import('./src/components/ai-chat/TaskPlanBoard.vue')['default']
   }
   export interface GlobalDirectives {
     vLoading: typeof import('element-plus/es')['ElLoadingDirective']

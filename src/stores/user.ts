@@ -23,11 +23,23 @@ export const useUserStore = defineStore(
         permissions: info.permissions?.length ? info.permissions : getFallbackPermissions(info.role)
       }
       isLogin.value = true
+      if (info.token) {
+        try {
+          localStorage.setItem('token', info.token)
+        } catch {
+          // ignore
+        }
+      }
     }
 
     const logout = () => {
       userInfo.value = null
       isLogin.value = false
+      try {
+        localStorage.removeItem('token')
+      } catch {
+        // ignore
+      }
     }
 
     const setPermissions = (permissions: string[]) => {
@@ -66,3 +78,39 @@ export const useUserStore = defineStore(
     } as PersistenceOptions
   }
 )
+
+/**
+ * 获取当前登录凭证 Token
+ * 优先从 Pinia userStore 获取，其次从 localStorage，再次从持久化 sessionStorage 中恢复兜底
+ */
+export function getAuthToken(): string {
+  try {
+    const userStore = useUserStore()
+    if (userStore.userInfo?.token) {
+      return userStore.userInfo.token
+    }
+  } catch {
+    // Pinia 尚未安装或未处于组件上下文
+  }
+
+  try {
+    const localToken = localStorage.getItem('token')
+    if (localToken) return localToken
+  } catch {
+    // 兼容浏览器安全策略
+  }
+
+  try {
+    const raw = sessionStorage.getItem('user-store')
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed?.userInfo?.token) {
+        return parsed.userInfo.token
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  return ''
+}

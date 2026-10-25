@@ -1,18 +1,18 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
-import { useUserStore } from '../stores/user'
+import { useUserStore, getAuthToken } from '../stores/user'
 
 const service = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
+  baseURL: import.meta.env.VITE_API_BASE_URL || '',
   timeout: 30000
 })
 
 // 请求拦截器
 service.interceptors.request.use(
   (config) => {
-    const userStore = useUserStore()
-    if (userStore.userInfo?.token) {
-      config.headers.Authorization = `Bearer ${userStore.userInfo?.token}`
+    const token = getAuthToken()
+    if (token) {
+      config.headers.Authorization = token.startsWith('Bearer ') ? token : `Bearer ${token}`
     }
     return config
   },
