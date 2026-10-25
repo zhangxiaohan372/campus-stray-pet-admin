@@ -10,12 +10,35 @@ export interface ChatStreamParams {
   user_id?: string
 }
 
+export interface TaskItem {
+  id: number
+  title: string
+  type?: string
+  status: 'pending' | 'running' | 'completed' | 'failed'
+  result?: string | null
+}
+
+export interface TaskPlan {
+  summary: string
+  tasks: TaskItem[]
+}
+
 export interface ChatStreamEvent {
-  type: 'token' | 'done' | 'context' | 'confirm_dialog' | 'error' | string
+  type:
+    | 'token'
+    | 'done'
+    | 'context'
+    | 'confirm_dialog'
+    | 'error'
+    | 'plan_created'
+    | 'task_updated'
+    | string
   content?: string
   message?: string
   fields?: Record<string, string>
   prompt?: string
+  plan?: TaskPlan
+  task?: TaskItem
 }
 
 export interface ConfirmParams {

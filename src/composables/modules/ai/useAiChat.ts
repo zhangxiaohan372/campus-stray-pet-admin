@@ -1,6 +1,14 @@
 import { ref, nextTick, type Ref } from 'vue'
 import { useUserStore } from '../../../stores/user'
-import { chatStreamApi, confirmApi, type ChatStreamEvent } from '../../../api/ai'
+import {
+  chatStreamApi,
+  confirmApi,
+  type ChatStreamEvent,
+  type TaskItem,
+  type TaskPlan
+} from '../../../api/ai'
+
+export type { TaskItem, TaskPlan }
 
 const AI_REQUEST_TIMEOUT_MS = 60_000
 
@@ -11,6 +19,7 @@ export interface Msg {
   isConfirm?: boolean
   fields?: Record<string, string>
   confirmedAction?: 'confirm' | 'cancel'
+  plan?: TaskPlan
 }
 
 export interface ConfirmDialogState {
@@ -121,12 +130,48 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
     }
 
     let answer: Msg | null = null
-    const appendAnswer = (content: string) => {
+    const getOrCreateAnswer = () => {
       if (!answer) {
         answer = { role: 'ai', content: '', time: now() }
         messages.value.push(answer)
       }
-      answer.content += content
+      return answer
+    }
+    const appendAnswer = (content: string) => {
+      const msg = getOrCreateAnswer()
+      msg.content += content
+      scrollBottom()
+    }
+
+    const handlePlanCreated = (planData: TaskPlan) => {
+      isStreaming.value = true
+      const msg = getOrCreateAnswer()
+      msg.plan = {
+        summary: planData.summary,
+        tasks: planData.tasks.map(t => ({ ...t })),
+      }
+      scrollBottom()
+    }
+
+    const handleTaskUpdated = (taskData: TaskItem) => {
+      isStreaming.value = true
+      const msg = getOrCreateAnswer()
+      if (msg.plan) {
+        const idx = msg.plan.tasks.findIndex(t => t.id === taskData.id)
+        if (idx !== -1) {
+          msg.plan.tasks[idx] = {
+            ...msg.plan.tasks[idx],
+            ...taskData,
+          }
+        } else {
+          msg.plan.tasks.push({ ...taskData })
+        }
+      } else {
+        msg.plan = {
+          summary: '任务执行规划',
+          tasks: [{ ...taskData }],
+        }
+      }
       scrollBottom()
     }
 
@@ -143,6 +188,12 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
         if (event.type === 'error') {
           throw new Error(event.message || 'AI 服务出错')
         }
+        if (event.type === 'plan_created' && event.plan) {
+          handlePlanCreated(event.plan)
+        }
+        if (event.type === 'task_updated' && event.task) {
+          handleTaskUpdated(event.task)
+        }
         if (event.type === 'token' && event.content) {
           isStreaming.value = true
           appendAnswer(event.content)
@@ -152,10 +203,9 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
           const promptText = event.prompt || '请核对拟提交的登记信息并确认：'
           appendAnswer(promptText)
 
-          if (answer) {
-            answer.isConfirm = true
-            answer.fields = event.fields || {}
-          }
+          const msg = getOrCreateAnswer()
+          msg.isConfirm = true
+          msg.fields = event.fields || {}
 
           // 2. 唤起登记信息核对弹窗
           confirmDialog.value = {
@@ -202,12 +252,48 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
     }
 
     let answer: Msg | null = null
-    const appendAnswer = (content: string) => {
+    const getOrCreateAnswer = () => {
       if (!answer) {
         answer = { role: 'ai', content: '', time: now() }
         messages.value.push(answer)
       }
-      answer.content += content
+      return answer
+    }
+    const appendAnswer = (content: string) => {
+      const msg = getOrCreateAnswer()
+      msg.content += content
+      scrollBottom()
+    }
+
+    const handlePlanCreated = (planData: TaskPlan) => {
+      isStreaming.value = true
+      const msg = getOrCreateAnswer()
+      msg.plan = {
+        summary: planData.summary,
+        tasks: planData.tasks.map(t => ({ ...t })),
+      }
+      scrollBottom()
+    }
+
+    const handleTaskUpdated = (taskData: TaskItem) => {
+      isStreaming.value = true
+      const msg = getOrCreateAnswer()
+      if (msg.plan) {
+        const idx = msg.plan.tasks.findIndex(t => t.id === taskData.id)
+        if (idx !== -1) {
+          msg.plan.tasks[idx] = {
+            ...msg.plan.tasks[idx],
+            ...taskData,
+          }
+        } else {
+          msg.plan.tasks.push({ ...taskData })
+        }
+      } else {
+        msg.plan = {
+          summary: '任务执行规划',
+          tasks: [{ ...taskData }],
+        }
+      }
       scrollBottom()
     }
 
@@ -223,6 +309,12 @@ export function useAiChat(scrollContainerRef?: Ref<HTMLElement | null>) {
       await readSseStream(response, (event) => {
         if (event.type === 'error') {
           throw new Error(event.message || '操作失败')
+        }
+        if (event.type === 'plan_created' && event.plan) {
+          handlePlanCreated(event.plan)
+        }
+        if (event.type === 'task_updated' && event.task) {
+          handleTaskUpdated(event.task)
         }
         if (event.type === 'token' && event.content) {
           isStreaming.value = true

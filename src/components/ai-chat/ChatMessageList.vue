@@ -24,11 +24,27 @@
         :class="msg.role === 'user' ? 'msg-user' : 'msg-ai'"
       >
         <div class="bubble" :class="msg.role === 'user' ? 'bubble-user' : 'bubble-ai'">
-          <span class="bubble-text">{{ msg.content }}</span>
-          <span
-            v-if="msg.role === 'ai' && isStreaming && i === messages.length - 1"
-            class="cursor"
-          >|</span>
+          <template v-if="msg.role === 'ai'">
+            <div class="ai-msg-content">
+              <!-- Devin 风格任务规划看板 -->
+              <TaskPlanBoard
+                v-if="msg.plan && msg.plan.tasks && msg.plan.tasks.length > 0"
+                :plan="msg.plan"
+                :is-streaming="isStreaming && i === messages.length - 1"
+              />
+
+              <MarkdownPreview
+                v-if="msg.content"
+                :editorId="`ai-msg-${i}`"
+                :modelValue="msg.content"
+              />
+              <span
+                v-if="isStreaming && i === messages.length - 1"
+                class="cursor"
+              >|</span>
+            </div>
+          </template>
+          <span v-else class="bubble-text">{{ msg.content }}</span>
 
           <!-- 待确认登记卡片操作栏 -->
           <div v-if="msg.isConfirm" class="confirm-actions">
@@ -65,6 +81,8 @@
 
 <script lang="ts" setup>
 import { ref } from 'vue'
+import MarkdownPreview from '../MarkdownPreview.vue'
+import TaskPlanBoard from './TaskPlanBoard.vue'
 import type { Msg } from '../../composables'
 
 defineProps<{
@@ -185,6 +203,12 @@ defineExpose({
   color: #111;
   border: 1px solid #e4e7ed;
   border-bottom-left-radius: 3px;
+  max-width: 88%;
+}
+
+.ai-msg-content {
+  position: relative;
+  width: 100%;
 }
 
 .bubble-text {

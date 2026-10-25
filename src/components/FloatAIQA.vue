@@ -79,7 +79,6 @@ const inputRef = ref<InstanceType<typeof ChatInput> | null>(null)
 const quickList = [
   '在校园里发现受伤的猫咪该怎么处理？',
   '给校园流浪猫狗喂食有哪些禁忌食物？',
-  '帮我查一下明向校区图书馆附近有哪些猫咪？',
   '我想登记一只新发现的流浪猫，需要什么信息？'
 ]
 

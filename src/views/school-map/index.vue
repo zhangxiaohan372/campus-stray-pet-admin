@@ -20,7 +20,7 @@
         </div>
         <div class="form-item">
           <label class="form-label">详细地址：</label>
-          <input v-model="addForm.address" class="form-input" placeholder="例如：明向校区图书馆南门林荫道" />
+          <input v-model="addForm.address" class="form-input" placeholder="点击地图自动逆解析获取，亦可手动修改" />
         </div>
         <div class="form-item">
           <label class="form-label">点位描述：</label>
@@ -86,8 +86,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import AMapLoader from '@amap/amap-jsapi-loader'
+import { ElMessage } from 'element-plus'
 import service from '../../components/request.ts'
 import { getPointsApi, createPointApi } from '../../api/point'
 
@@ -97,6 +98,8 @@ const feedingPoints = ref([]) // 救助点数据
 const currentPoint = ref(null) // 当前选中的点
 let map = null 
 let markerList = []
+let geocoder = null
+let selectedMarker = null
 
 // 新增表单状态
 const isAdding = ref(false)
@@ -136,15 +139,43 @@ const getPoints = async () => {
     if (res.data.success) feedingPoints.value = res.data.data
     renderMarkers() // 获取数据后渲染标记
   } catch (error) {
-    alert('获取数据失败：' + error.message)
+    ElMessage.error('获取数据失败：' + error.message)
   }
 }
 
 // ==================== 4. 地图初始化与事件处理 ====================
-// 地图点击处理函数
+// 地图点击处理函数：自动拾取经纬度并逆地理编码回填地址
 const handleMapClick = (e) => {
-  if (isAdding.value) {
-    addForm.value.position = [e.lnglat.lng.toFixed(6), e.lnglat.lat.toFixed(6)]
+  if (!isAdding.value) return
+
+  const lng = Number(e.lnglat.lng).toFixed(6)
+  const lat = Number(e.lnglat.lat).toFixed(6)
+  addForm.value.position = [lng, lat]
+
+  // 地图上展示选点标记
+  if (!selectedMarker) {
+    selectedMarker = new window.AMap.Marker({
+      position: e.lnglat,
+      map: map,
+      anchor: 'bottom-center'
+    })
+  } else {
+    selectedMarker.setPosition(e.lnglat)
+    selectedMarker.setMap(map)
+  }
+
+  // 调用高德 Geocoder 逆地理编码服务获取结构化地址并回填
+  if (geocoder) {
+    addForm.value.address = '正在解析地址...'
+    geocoder.getAddress(e.lnglat, (status, result) => {
+      if (status === 'complete' && result.regeocode) {
+        addForm.value.address = result.regeocode.formattedAddress || ''
+      } else {
+        console.warn('逆地理编码失败:', result)
+        addForm.value.address = ''
+        ElMessage.warning('经纬度已拾取，未识别到详细地址，请手动输入')
+      }
+    })
   }
 }
 
@@ -153,8 +184,9 @@ const initMap = async () => {
   await AMapLoader.load({ 
     key: KEY, 
     version: '2.0',
-    plugins: ['AMap.Marker']
+    plugins: ['AMap.Marker', 'AMap.Geocoder']
   })
+
   // 创建地图实例
   map = new window.AMap.Map('map', {
     zoom: 16,
@@ -163,6 +195,15 @@ const initMap = async () => {
     showLabel: true,
     mapStyle: 'amap://styles/normal'
   })
+
+  // 初始化地理编码服务
+  if (window.AMap.Geocoder) {
+    geocoder = new window.AMap.Geocoder({
+      city: '0351', // 太原及晋中周边区域
+      radius: 1000
+    })
+  }
+
   // 绑定地图点击事件
   map.on('click', handleMapClick)
   // 获取后端数据
@@ -172,21 +213,29 @@ const initMap = async () => {
 // ==================== 5. 新增表单相关操作 ====================
 const startAddPoint = () => {
   isAdding.value = true
-  addForm.value = { name: '', address: '', desc: '', food: '', contact: '', position: [] } 
+  addForm.value = { name: '', address: '', desc: '', food: '', contact: '', position: [] }
+  if (selectedMarker) {
+    selectedMarker.setMap(null)
+    selectedMarker = null
+  }
 }
 
 const cancelAddPoint = () => {
   isAdding.value = false
-  currentPoint.value = null 
+  currentPoint.value = null
+  if (selectedMarker) {
+    selectedMarker.setMap(null)
+    selectedMarker = null
+  }
 }
 
 const submitAddPoint = async () => { 
   if (!addForm.value.name || !addForm.value.address) {
-    alert('点位名称、详细地址为必填项！')
+    ElMessage.warning('点位名称、详细地址为必填项！')
     return
   }
   if (!addForm.value.position || addForm.value.position.length !== 2) {
-    alert('请先点击地图选择经纬度！')
+    ElMessage.warning('请先点击地图选择经纬度！')
     return
   }
   
@@ -201,25 +250,34 @@ const submitAddPoint = async () => {
       lng: lng,
       lat: lat
     }
-    console.log('发送数据:', submitData)
     
     const response = await createPointApi(submitData)
-    console.log('响应数据:', response.data)
-    alert('新增救助点成功！')
+    ElMessage.success('新增救助点成功！')
     getPoints()
     cancelAddPoint()
   } catch (error) {
     console.error('新增失败:', error)
     if (error.response) {
-      alert(`新增失败：${error.response.data?.msg || error.message}`)
+      ElMessage.error(`新增失败：${error.response.data?.msg || error.message}`)
     } else {
-      alert('新增失败：' + error.message)
+      ElMessage.error('新增失败：' + error.message)
     }
   }
 }
 
 // ==================== 6. 生命周期 ====================
 onMounted(() => initMap())
+
+onUnmounted(() => {
+  if (selectedMarker) {
+    selectedMarker.setMap(null)
+    selectedMarker = null
+  }
+  if (map) {
+    map.destroy()
+    map = null
+  }
+})
 </script>
 
 <style scoped>
